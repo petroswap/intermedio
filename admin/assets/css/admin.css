@@ -1151,6 +1151,363 @@ a:hover {
 }
 
 /* ============================================
+ * INSPECTOR V2 - NUEVOS ESTILOS
+ * ============================================ */
+
+/* Tabla de listado de tablas */
+.tables-list-container {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.tables-list-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.tables-list-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.tables-list-title .icon {
+    font-size: 1.5rem;
+}
+
+.tables-list-search {
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+}
+
+.tables-list-search input {
+    min-width: 250px;
+}
+
+.tables-list-body {
+    padding: 0;
+}
+
+.tables-list-body .data-table {
+    margin: 0;
+}
+
+.tables-list-body .data-table thead th {
+    background: var(--gray-50);
+    font-weight: 600;
+    color: var(--gray-700);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 2px solid var(--gray-200);
+    white-space: nowrap;
+}
+
+.tables-list-body .data-table tbody td {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--gray-100);
+    vertical-align: middle;
+}
+
+.tables-list-body .data-table tbody tr {
+    transition: background-color var(--transition-fast);
+}
+
+.tables-list-body .data-table tbody tr:hover {
+    background-color: var(--primary-bg);
+}
+
+.tables-list-body .data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Celda de nombre de tabla */
+.table-name-cell {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.table-name-cell .table-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-bg);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    color: var(--primary);
+}
+
+.table-name-cell .table-name {
+    font-weight: 600;
+    color: var(--gray-900);
+}
+
+/* Celda de registros */
+.record-count-cell {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--gray-700);
+}
+
+.record-count-cell .count {
+    font-weight: 600;
+    color: var(--primary);
+}
+
+/* Celda de columnas */
+.column-count-cell {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+/* Botón de acción en tabla */
+.table-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-1) var(--space-3);
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.table-action-btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.table-action-btn:active {
+    transform: translateY(0);
+}
+
+/* Paginación de DataTables */
+.dataTables_wrapper .dataTables_paginate {
+    padding: var(--space-md) var(--space-lg);
+    display: flex;
+    justify-content: center;
+    gap: var(--space-xs);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    background: var(--white);
+    color: var(--gray-700);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--primary-bg);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Info de registros */
+.dataTables_wrapper .dataTables_info {
+    padding: var(--space-md) var(--space-lg);
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+/* Vista de tabla individual */
+.table-view-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+}
+
+.table-view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    flex-wrap: wrap;
+}
+
+.table-view-back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-2) var(--space-4);
+    background: var(--white);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius);
+    color: var(--gray-700);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+.table-view-back:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-400);
+}
+
+.table-view-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.table-view-title .badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: var(--space-1) var(--space-2);
+    background: var(--primary-bg);
+    color: var(--primary);
+    border-radius: var(--radius-full);
+}
+
+.table-view-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* Botón "Mostrar todos" */
+.btn-show-all {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-2) var(--space-4);
+    background: var(--success);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-show-all:hover {
+    background: var(--success-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-show-all:active {
+    transform: translateY(0);
+}
+
+.btn-show-all .count {
+    font-weight: 700;
+}
+
+/* Indicador de registros mostrados */
+.records-shown-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-2) var(--space-4);
+    background: var(--info-bg);
+    border: 1px solid var(--info);
+    border-radius: var(--radius);
+    font-size: 0.8125rem;
+    color: var(--info-dark);
+}
+
+.records-shown-info .icon {
+    font-size: 1rem;
+}
+
+/* Loading skeleton para tablas */
+.skeleton-row {
+    display: flex;
+    gap: var(--space-md);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.skeleton-cell {
+    height: 16px;
+    background: linear-gradient(90deg, var(--gray-200) 25%, var(--gray-100) 50%, var(--gray-200) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius-sm);
+}
+
+.skeleton-cell.name { width: 150px; }
+.skeleton-cell.count { width: 80px; }
+.skeleton-cell.columns { width: 60px; }
+.skeleton-cell.action { width: 100px; }
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+/* Responsive para inspector v2 */
+@media (max-width: 768px) {
+    .tables-list-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .tables-list-search {
+        width: 100%;
+    }
+    
+    .tables-list-search input {
+        min-width: 0;
+        width: 100%;
+    }
+    
+    .table-view-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .table-view-actions {
+        flex-wrap: wrap;
+    }
+    
+    .table-view-actions .btn {
+        flex: 1;
+        min-width: 120px;
+    }
+}
+
+/* ============================================
  * PRINT STYLES
  * ============================================ */
 @media print {
