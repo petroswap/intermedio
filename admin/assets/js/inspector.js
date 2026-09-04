@@ -1,7 +1,8 @@
 /**
  * ============================================
- * INSPECTOR.JS - Lógica del Inspector de BD
+ * INSPECTOR.JS - Lógica del Inspector de BD (v2)
  * ============================================
+ * Nuevo flujo: DataTable tablas → 10 registros → Mostrar todos
  */
 
 const Inspector = {
@@ -9,6 +10,8 @@ const Inspector = {
     columns: [],
     filters: [],
     data: [],
+    totalRecords: 0,
+    showingAll: false,
     _initialized: false,
 
     /**
@@ -27,17 +30,36 @@ const Inspector = {
      * Vincular eventos
      */
     bindEvents: function() {
-        // Selector de tabla
-        $('#table-select').on('change', (e) => {
-            this.selectTable(e.target.value);
+        // === VISTA DE TABLAS ===
+        
+        // Búsqueda de tablas
+        $('#tables-search').on('input', (e) => {
+            this.filterTablesList(e.target.value);
         });
 
-        // Botón refrescar
-        $('#btn-refresh').on('click', () => {
-            this.refreshData();
+        // Refrescar tablas
+        $('#btn-refresh-tables').on('click', () => {
+            this.loadTables();
         });
 
-        // Botón SQL libre
+        // === VISTA DE DATOS ===
+        
+        // Volver a tablas
+        $('#btn-back-tables').on('click', () => {
+            this.showTablesView();
+        });
+
+        // Últimos 10
+        $('#btn-show-last-10').on('click', () => {
+            this.loadLastRecords(10);
+        });
+
+        // Mostrar todos
+        $('#btn-show-all').on('click', () => {
+            this.loadAllRecords();
+        });
+
+        // SQL libre
         $('#btn-sql').on('click', () => {
             this.openSqlModal();
         });
@@ -49,7 +71,7 @@ const Inspector = {
 
         // Buscar
         $('#btn-search').on('click', () => {
-            this.loadData();
+            this.loadDataWithFilters();
         });
 
         // Limpiar filtros
@@ -84,29 +106,118 @@ const Inspector = {
      * Cargar tablas via AJAX
      */
     loadTables: function() {
-        const select = $('#table-select');
+        const tbody = $('#tables-tbody');
         
+        // Mostrar skeleton
+        tbody.html(`
+            <tr><td colspan="4"><div class="skeleton-cell name" style="width:150px;height:16px;background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;"></div></td></tr>
+            <tr><td colspan="4"><div class="skeleton-cell name" style="width:120px;height:16px;background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;"></div></td></tr>
+            <tr><td colspan="4"><div class="skeleton-cell name" style="width:180px;height:16px;background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;"></div></td></tr>
+        `);
+
         Admin.post('modules/inspector/ajax/listar_tablas.php', {})
         .then(response => {
-            select.empty().append('<option value="">-- Seleccionar tabla --</option>');
-            
             if (response.data && response.data.length > 0) {
-                response.data.forEach(table => {
-                    const name = table.TABLA || table.tabla || '';
-                    select.append(`<option value="${name}">${name}</option>`);
-                });
+                this.renderTablesList(response.data);
             } else {
-                select.empty().append('<option value="">No se encontraron tablas</option>');
+                tbody.html('<tr><td colspan="4" class="text-center text-gray-500">No se encontraron tablas</td></tr>');
             }
         })
         .catch(error => {
-            select.empty().append('<option value="">Error al conectar con la BD</option>');
-            Admin.showAlert(
-                'No se pudo conectar a la base de datos Firebird. Verifica la configuración en <code>admin/config.php</code>.',
-                'danger',
-                'Error de conexión'
-            );
+            tbody.html('<tr><td colspan="4" class="text-center text-danger">Error al conectar con la BD</td></tr>');
+            Admin.showAlert('No se pudo conectar a la base de datos Firebird.', 'danger', 'Error de conexión');
         });
+    },
+
+    /**
+     * Renderizar lista de tablas en DataTable
+     */
+    renderTablesList: function(tables) {
+        const tbody = $('#tables-tbody');
+        tbody.empty();
+
+        tables.forEach(table => {
+            const name = table.TABLA || table.tabla || '';
+            const records = parseInt(table.REGISTROS || table.registros || 0);
+            const columns = parseInt(table.COLUMNAS || table.columnas || 0);
+            
+            const row = $(`
+                <tr data-table="${name}">
+                    <td>
+                        <div class="table-name-cell">
+                            <div class="table-icon">📋</div>
+                            <span class="table-name">${name}</span>
+                        </div>
+                    </td>
+                    <td class="record-count-cell">
+                        <span class="count">${records.toLocaleString('es-ES')}</span>
+                    </td>
+                    <td class="column-count-cell">
+                        ${columns}
+                    </td>
+                    <td>
+                        <button class="table-action-btn" data-table="${name}">
+                            Ver datos →
+                        </button>
+                    </td>
+                </tr>
+            `);
+            tbody.append(row);
+        });
+
+        // Vincular eventos de botones
+        $('.table-action-btn').on('click', (e) => {
+            const tableName = $(e.target).data('table');
+            this.selectTable(tableName);
+        });
+
+        // Inicializar DataTable
+        this.initTablesDataTable();
+    },
+
+    /**
+     * Inicializar DataTable para lista de tablas
+     */
+    initTablesDataTable: function() {
+        // Destruir DataTable existente si hay
+        if ($.fn.DataTable.isDataTable('#tables-datatable')) {
+            $('#tables-datatable').DataTable().destroy();
+        }
+
+        $('#tables-datatable').DataTable({
+            language: {
+                lengthMenu: 'Mostrar _MENU_ tablas',
+                zeroRecords: 'No se encontraron tablas',
+                info: 'Mostrando _START_ a _END_ de _TOTAL_ tablas',
+                infoEmpty: 'Mostrando 0 a 0 de 0 tablas',
+                infoFiltered: '(filtrado de _MAX_ tablas totales)',
+                search: 'Buscar:',
+                paginate: {
+                    first: 'Primero',
+                    last: 'Último',
+                    next: '→',
+                    previous: '←'
+                }
+            },
+            pageLength: 25,
+            order: [[1, 'desc']], // Ordenar por registros (desc)
+            columns: [
+                { orderable: true },  // Tabla
+                { orderable: true },  // Registros
+                { orderable: true },  // Columnas
+                { orderable: false }  // Acción
+            ],
+            dom: '<"top"fl>rt<"bottom"ip>'
+        });
+    },
+
+    /**
+     * Filtrar lista de tablas
+     */
+    filterTablesList: function(query) {
+        if ($.fn.DataTable.isDataTable('#tables-datatable')) {
+            $('#tables-datatable').DataTable().search(query).draw();
+        }
     },
 
     /**
@@ -116,62 +227,73 @@ const Inspector = {
         const params = new URLSearchParams(window.location.search);
         const table = params.get('table');
         if (table) {
-            $('#table-select').val(table);
             this.selectTable(table);
         }
     },
 
     /**
-     * Seleccionar tabla
+     * Seleccionar tabla (cambiar a vista de datos)
      */
     selectTable: function(tableName) {
-        if (!tableName) {
-            this.resetView();
-            return;
-        }
+        if (!tableName) return;
 
         this.currentTable = tableName;
         this.filters = [];
+        this.showingAll = false;
         
         // Actualizar URL
         const url = new URL(window.location);
         url.searchParams.set('table', tableName);
         window.history.pushState({}, '', url);
 
+        // Cambiar a vista de datos
+        this.showTableView();
+        
         // Cargar información de la tabla
         this.loadTableInfo();
+    },
+
+    /**
+     * Mostrar vista de tablas
+     */
+    showTablesView: function() {
+        $('#view-tables').show();
+        $('#view-table-data').hide();
+        
+        // Limpiar URL
+        const url = new URL(window.location);
+        url.searchParams.delete('table');
+        window.history.pushState({}, '', url);
+        
+        this.currentTable = null;
+    },
+
+    /**
+     * Mostrar vista de datos de tabla
+     */
+    showTableView: function() {
+        $('#view-tables').hide();
+        $('#view-table-data').show();
     },
 
     /**
      * Cargar información de la tabla
      */
     loadTableInfo: function() {
+        $('#current-table-name').text(this.currentTable);
+        
         Admin.post('modules/inspector/ajax/listar_columnas.php', {
             table: this.currentTable
         })
         .then(response => {
             this.columns = response.data;
-            this.renderTableInfo();
             this.renderColumns();
             this.populateFilterFields();
-            this.loadData();
+            this.loadLastRecords(10);
         })
         .catch(error => {
             Admin.showError($('#results-container'), error.message);
         });
-    },
-
-    /**
-     * Renderizar información de la tabla
-     */
-    renderTableInfo: function() {
-        $('#info-table-name').text(this.currentTable);
-        $('#info-table-columns').text(this.columns.length);
-        $('#table-info').show();
-        $('#columns-section').show();
-        $('#filters-section').show();
-        $('#sql-section').show();
-        $('#results-section').show();
     },
 
     /**
@@ -206,10 +328,49 @@ const Inspector = {
     },
 
     /**
-     * Cargar datos
+     * Cargar últimos N registros
      */
-    loadData: function() {
+    loadLastRecords: function(limit) {
         if (!this.currentTable) return;
+
+        this.showingAll = false;
+        this.updateRecordsShownInfo(limit);
+
+        const selectedColumns = [];
+        $('.column-chip.selected').each(function() {
+            selectedColumns.push($(this).data('column'));
+        });
+
+        const data = {
+            table: this.currentTable,
+            limit: limit,
+            fields: selectedColumns.join(',')
+        };
+
+        Admin.showLoading($('#results-container'));
+
+        Admin.post('modules/inspector/ajax/obtener_ultimos.php', data)
+        .then(response => {
+            this.data = response.data;
+            this.totalRecords = response.count || 0;
+            this.renderResults(response);
+            this.updateSql();
+            this.updateCount(this.totalRecords);
+            this.updateRecordsShownInfo(limit, this.totalRecords);
+        })
+        .catch(error => {
+            Admin.showError($('#results-container'), error.message);
+        });
+    },
+
+    /**
+     * Cargar todos los registros
+     */
+    loadAllRecords: function() {
+        if (!this.currentTable) return;
+
+        this.showingAll = true;
+        $('#records-shown').hide();
 
         const selectedColumns = [];
         $('.column-chip.selected').each(function() {
@@ -235,9 +396,10 @@ const Inspector = {
         Admin.post('modules/inspector/ajax/obtener_datos.php', data)
         .then(response => {
             this.data = response.data;
-            this.renderResults(response);
+            this.totalRecords = response.count || 0;
+            this.renderResults(response, true);
             this.updateSql();
-            this.updateCount(response.count || 0);
+            this.updateCount(this.totalRecords);
         })
         .catch(error => {
             Admin.showError($('#results-container'), error.message);
@@ -245,32 +407,59 @@ const Inspector = {
     },
 
     /**
+     * Cargar datos con filtros
+     */
+    loadDataWithFilters: function() {
+        if (this.showingAll) {
+            this.loadAllRecords();
+        } else {
+            this.loadLastRecords(10);
+        }
+    },
+
+    /**
      * Renderizar resultados
      */
-    renderResults: function(response) {
+    renderResults: function(response, paginate = false) {
         const container = $('#results-container');
         
         if (!response.data || response.data.length === 0) {
-            container.html('<p class="no-data">No se encontraron registros</p>');
+            container.html('<p class="text-center text-gray-500" style="padding: 2rem;">No se encontraron registros</p>');
             return;
         }
 
         const html = Admin.createTable(response.data);
         container.html(html);
 
-        // Inicializar DataTable
-        Admin.initDataTable('.data-table', {
-            pageLength: 25,
-            order: [[0, 'asc']]
-        });
+        // Inicializar DataTable con paginación si se muestran todos
+        if (paginate) {
+            Admin.initDataTable('.data-table', {
+                pageLength: 25,
+                order: [[0, 'asc']]
+            });
+        }
     },
 
     /**
      * Actualizar contador
      */
     updateCount: function(count) {
-        $('#results-count').text(count);
-        $('#info-table-count').text(count);
+        $('#results-count').text(count.toLocaleString('es-ES'));
+        $('#current-table-count').text(count.toLocaleString('es-ES') + ' registros');
+        $('#show-all-count').text(count.toLocaleString('es-ES'));
+    },
+
+    /**
+     * Actualizar información de registros mostrados
+     */
+    updateRecordsShownInfo: function(shown, total) {
+        if (total !== undefined) {
+            $('#records-shown').show();
+            $('#shown-count').text(shown);
+            $('#total-count').text(total.toLocaleString('es-ES'));
+        } else {
+            $('#records-shown').hide();
+        }
     },
 
     /**
@@ -288,7 +477,7 @@ const Inspector = {
 
         this.filters.push({ field, operator, value });
         this.renderFilters();
-        this.loadData();
+        this.loadDataWithFilters();
 
         // Limpiar campos
         $('#filter-field').val('');
@@ -325,7 +514,7 @@ const Inspector = {
     removeFilter: function(index) {
         this.filters.splice(index, 1);
         this.renderFilters();
-        this.loadData();
+        this.loadDataWithFilters();
     },
 
     /**
@@ -334,7 +523,7 @@ const Inspector = {
     clearFilters: function() {
         this.filters = [];
         this.renderFilters();
-        this.loadData();
+        this.loadDataWithFilters();
     },
 
     /**
@@ -360,18 +549,12 @@ const Inspector = {
         }
 
         sql += '\nORDER BY ' + (selectedColumns[0] || '1');
-        sql += '\nROWS 1 TO 50';
+        
+        if (!this.showingAll) {
+            sql += '\nROWS 1 TO 10';
+        }
 
         $('#sql-generated').text(sql);
-    },
-
-    /**
-     * Refrescar datos
-     */
-    refreshData: function() {
-        if (this.currentTable) {
-            this.loadData();
-        }
     },
 
     /**
@@ -408,28 +591,12 @@ const Inspector = {
         })
         .then(response => {
             this.data = response.data;
-            this.renderResults(response);
+            this.renderResults(response, true);
             this.updateCount(response.count || 0);
         })
         .catch(error => {
             Admin.showError($('#results-container'), error.message);
         });
-    },
-
-    /**
-     * Resetear vista
-     */
-    resetView: function() {
-        this.currentTable = null;
-        this.columns = [];
-        this.filters = [];
-        this.data = [];
-
-        $('#table-info').hide();
-        $('#columns-section').hide();
-        $('#filters-section').hide();
-        $('#sql-section').hide();
-        $('#results-section').hide();
     }
 };
 
