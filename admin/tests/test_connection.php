@@ -61,7 +61,7 @@ try {
     echo "1. Verificar que el servidor Firebird está ejecutándose\n";
     echo "2. Verificar que la ruta de la BD es correcta\n";
     echo "3. Verificar credenciales de acceso\n";
-    echo "4. Verificar que el puerto {$config['port']} está abierto\n";
+    echo "4. Verificar que el puerto " . DB_CONFIG['port'] . " está abierto\n";
     
     exit(1);
 }

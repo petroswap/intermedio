@@ -75,8 +75,8 @@ class Database
 
         $this->pdo = new PDO(
             $dsn,
-            $this->config['user'] ?? 'SYSDBA',
-            $this->config['password'] ?? 'masterkey'
+            $this->config['user'] ?? '',
+            $this->config['password'] ?? ''
         );
 
         $this->pdo->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);

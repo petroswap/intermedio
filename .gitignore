@@ -1,12 +1,38 @@
+# ============================================
+# CREDENCIALES Y CONFIGURACIÓN SENSIBLE
+# ============================================
+.env
+.env.*
+!.env.example
+*/config.php
+*/config_local.php
+*/config_local_example.php
+
+# ============================================
+# ARCHIVOS DE SISTEMA / TESTING
+# ============================================
 db-test.php
 index.php
 info.php
 php-test.php
 test_firebird2.php
-*/config.php
-*/config_local_example.php
 
+# ============================================
+# OPENCODE (AI assistant config - local only)
+# ============================================
 .opencode/*
+
+# ============================================
+# MÓDULOS LEGACY (no forman parte de v2)
+# ============================================
 ruta_intermedio/*
 code/*
 inspector/*
+
+# ============================================
+# EDITOR BACKUPS
+# ============================================
+*.save
+*.swp
+*.swo
+*~
