@@ -1,0 +1,22 @@
+[
+    {
+        "id": "ep_6a9c88d13600c",
+        "name": "listar_clientes",
+        "description": "Lista de clientes",
+        "table": "CLIENTES",
+        "type": "list",
+        "method": "POST",
+        "config": [],
+        "created_at": "2026-09-05 23:25:37"
+    },
+    {
+        "id": "ep_6a9c895a5cbf5",
+        "name": "obtener_cliente",
+        "description": "Obtener cliente por ID",
+        "table": "CLIENTES",
+        "type": "get",
+        "method": "POST",
+        "config": [],
+        "created_at": "2026-09-05 23:27:54"
+    }
+]

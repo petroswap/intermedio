@@ -62,16 +62,25 @@ class Database
         $server = $this->config['server'] ?? 'localhost';
         $port = $this->config['port'] ?? '3050';
         $path = $this->config['path'] ?? '';
-        $charset = $this->config['charset'] ?? 'UTF-8';
+        $charset = $this->config['charset'] ?? 'UTF8';
 
-        $dsn = sprintf(
-            'firebird:host=%s;dbname=%s/%s:%s;charset=%s',
-            $server,
-            $server,
-            $port,
-            $path,
-            $charset
-        );
+        // Para Firebird local (localhost), usar formato simplificado
+        if ($server === 'localhost' || $server === '127.0.0.1') {
+            $dsn = sprintf(
+                'firebird:dbname=%s;charset=%s',
+                $path,
+                $charset
+            );
+        } else {
+            // Para servidor remoto
+            $dsn = sprintf(
+                'firebird:host=%s;service=%s;dbname=%s;charset=%s',
+                $server,
+                $port,
+                $path,
+                $charset
+            );
+        }
 
         $this->pdo = new PDO(
             $dsn,
@@ -79,7 +88,6 @@ class Database
             $this->config['password'] ?? ''
         );
 
-        $this->pdo->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
@@ -197,7 +205,14 @@ class Database
                 WHERE RF.RDB\$RELATION_NAME = :table
                 ORDER BY RF.RDB\$FIELD_POSITION";
         
-        return $this->query($sql, ['table' => $table]);
+        $results = $this->query($sql, ['table' => $table]);
+        
+        // Firebird rellena CHAR con espacios - limpiar
+        return array_map(function($row) {
+            return array_map(function($val) {
+                return is_string($val) ? trim($val) : $val;
+            }, $row);
+        }, $results);
     }
 
     /**
@@ -213,7 +228,7 @@ class Database
                 ORDER BY S.RDB\$FIELD_POSITION";
         
         $result = $this->query($sql, ['table' => $table]);
-        return $result[0]['campo'] ?? null;
+        return $result[0]['CAMPO'] ?? null;
     }
 
     /**
@@ -234,6 +249,6 @@ class Database
         }
 
         $result = $this->query($sql, $params);
-        return (int)($result[0]['total'] ?? 0);
+        return (int)($result[0]['TOTAL'] ?? 0);
     }
 }

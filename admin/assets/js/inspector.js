@@ -1,8 +1,19 @@
-/**
+﻿/**
  * ============================================
- * INSPECTOR.JS - Lógica del Inspector de BD (v2)
+ * INSPECTOR.JS - LÃ³gica del Inspector de BD (v3.0)
  * ============================================
- * Nuevo flujo: DataTable tablas → 10 registros → Mostrar todos
+ * Flujo: Tablas â†’ 10 registros â†’ Mostrar todos + filtros + SQL con ayuda
+ *
+ * IMPORTANT: All events use delegation (bound to document) because the
+ * inspector HTML is loaded dynamically via Admin.loadModule().
+ * The $(document).ready() init is removed â€” Admin.loadModule() calls Inspector.init().
+ *
+ * Endpoints:
+ *   listar_tablas.php    â†’ lista de tablas con conteo
+ *   listar_columnas.php  â†’ columnas de una tabla
+ *   obtener_ultimos.php  â†’ Ãºltimos N registros (sin filtros, para carga rÃ¡pida)
+ *   obtener_datos.php    â†’ datos paginados con filtros y campos seleccionados
+ *   ejecutar_sql.php     â†’ SQL libre (SELECT only)
  */
 
 const Inspector = {
@@ -12,448 +23,557 @@ const Inspector = {
     data: [],
     totalRecords: 0,
     showingAll: false,
-    _initialized: false,
+    currentPage: 1,
+    perPage: 50,
+    _eventsBound: false,
+    _tablesDt: null,
+    _resultsDt: null,
+    _loadingTimeout: null,
 
     /**
-     * Inicializar inspector
+     * Show full-screen loading overlay (with delay for fast operations)
+     */
+    showOverlay: function(msg) {
+        var self = this;
+        $('#loading-message').text(msg || 'Cargando datos...');
+        // Delay showing overlay for fast operations (< 300ms)
+        this._loadingTimeout = setTimeout(function() {
+            $('#loading-overlay').fadeIn(150);
+        }, 300);
+    },
+
+    /**
+     * Hide full-screen loading overlay
+     */
+    hideOverlay: function() {
+        clearTimeout(this._loadingTimeout);
+        $('#loading-overlay').fadeOut(100);
+    },
+
+    /**
+     * Initialize inspector. Called by Admin.loadModule() after HTML is in DOM.
      */
     init: function() {
-        if (this._initialized) return;
-        this._initialized = true;
-
-        this.bindEvents();
+        if (!this._eventsBound) {
+            this.bindEvents();
+            this._eventsBound = true;
+        }
         this.loadTables();
         this.checkUrlParams();
     },
 
-    /**
-     * Vincular eventos
-     */
+    // ============================================
+    // EVENT BINDING (delegated â€” survives DOM replacement)
+    // ============================================
+
     bindEvents: function() {
-        // === VISTA DE TABLAS ===
-        
-        // Búsqueda de tablas
-        $('#tables-search').on('input', (e) => {
-            this.filterTablesList(e.target.value);
+        const self = this;
+
+        // Tablas
+        $(document).on('input', '#tables-search', function(e) { self.filterTablesList(e.target.value); });
+        $(document).on('click', '#btn-refresh-tables', function() { self.loadTables(); });
+        $(document).on('click', '.table-action-btn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            self.selectTable($(e.currentTarget).data('table'));
+        });
+        $(document).on('click', '#tables-datatable tbody tr', function(e) {
+            if (!$(e.target).closest('.table-action-btn').length) {
+                var table = $(this).data('table');
+                if (table) self.selectTable(table);
+            }
         });
 
-        // Refrescar tablas
-        $('#btn-refresh-tables').on('click', () => {
-            this.loadTables();
+        // NavegaciÃ³n
+        $(document).on('click', '#btn-back-tables', function(e) { e.preventDefault(); self.showTablesView(); });
+        $(document).on('click', '#btn-show-last-10', function() { self.loadLastRecords(10); });
+        $(document).on('click', '#btn-show-all', function() { self.loadAllRecords(); });
+        $(document).on('click', '#btn-sql', function() { self.openSqlTab(); });
+
+        // Columnas - select all/none
+        $(document).on('click', '#btn-select-all-cols', function() {
+            $('#columns-container .column-chip').addClass('selected');
+            self.updateSql();
+        });
+        $(document).on('click', '#btn-select-none-cols', function() {
+            $('#columns-container .column-chip').removeClass('selected');
+            self.updateSql();
         });
 
-        // === VISTA DE DATOS ===
-        
-        // Volver a tablas
-        $('#btn-back-tables').on('click', () => {
-            this.showTablesView();
-        });
+        // Filtros
+        $(document).on('click', '#btn-add-filter', function() { self.addFilter(); });
+        $(document).on('click', '#btn-search', function() { self.applyFilters(); });
+        $(document).on('click', '#btn-clear-filters', function() { self.clearFilters(); });
+        $(document).on('keydown', '#filter-value', function(e) { if (e.key === 'Enter') self.addFilter(); });
 
-        // Últimos 10
-        $('#btn-show-last-10').on('click', () => {
-            this.loadLastRecords(10);
-        });
-
-        // Mostrar todos
-        $('#btn-show-all').on('click', () => {
-            this.loadAllRecords();
-        });
-
-        // SQL libre
-        $('#btn-sql').on('click', () => {
-            this.openSqlModal();
-        });
-
-        // Agregar filtro
-        $('#btn-add-filter').on('click', () => {
-            this.addFilter();
-        });
-
-        // Buscar
-        $('#btn-search').on('click', () => {
-            this.loadDataWithFilters();
-        });
-
-        // Limpiar filtros
-        $('#btn-clear-filters').on('click', () => {
-            this.clearFilters();
-        });
-
-        // Copiar SQL
-        $('#btn-copy-sql').on('click', () => {
+        // SQL
+        $(document).on('click', '#btn-copy-sql', function() {
             Admin.copyToClipboard($('#sql-generated').text());
         });
-
-        // Ejecutar SQL
-        $('#btn-execute-sql').on('click', () => {
-            this.executeSql();
+        $(document).on('click', '#btn-execute-sql', function() { self.executeSql(); });
+        $(document).on('click', '.sql-example', function(e) {
+            e.preventDefault();
+            const sql = $(e.target).closest('.sql-example').data('sql');
+            if (sql) { $('#sql-input').val(sql); self.executeSql(); }
         });
 
-        // Cerrar modales
-        $('.modal-close').on('click', () => {
-            this.closeModals();
-        });
-
-        // Cerrar con Escape
-        $(document).on('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.closeModals();
+        // Modales
+        $(document).on('click', '.modal-close', function() { self.closeModals(); });
+        $(document).on('keydown', function(e) {
+            if (e.key === 'Escape') self.closeModals();
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && $('#sql-modal').is(':visible')) {
+                self.executeSql();
             }
         });
     },
 
-    /**
-     * Cargar tablas via AJAX
-     */
+    // ============================================
+    // VISTA DE TABLAS
+    // ============================================
+
     loadTables: function() {
+        const self = this;
         const tbody = $('#tables-tbody');
-        
-        // Mostrar skeleton
-        tbody.html(`
-            <tr><td colspan="4"><div class="skeleton-cell name" style="width:150px;height:16px;background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;"></div></td></tr>
-            <tr><td colspan="4"><div class="skeleton-cell name" style="width:120px;height:16px;background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;"></div></td></tr>
-            <tr><td colspan="4"><div class="skeleton-cell name" style="width:180px;height:16px;background:linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;"></div></td></tr>
-        `);
+        tbody.html(
+            '<tr><td colspan="4"><div class="skeleton-cell name" style="width:150px"></div></td></tr>' +
+            '<tr><td colspan="4"><div class="skeleton-cell name" style="width:120px"></div></td></tr>' +
+            '<tr><td colspan="4"><div class="skeleton-cell name" style="width:180px"></div></td></tr>'
+        );
 
         Admin.post('modules/inspector/ajax/listar_tablas.php', {})
-        .then(response => {
+        .then(function(response) {
             if (response.data && response.data.length > 0) {
-                this.renderTablesList(response.data);
+                self.renderTablesList(response.data);
             } else {
-                tbody.html('<tr><td colspan="4" class="text-center text-gray-500">No se encontraron tablas</td></tr>');
+                tbody.html('<tr><td colspan="4" class="text-center" style="padding:2rem;color:var(--text-tertiary)">No se encontraron tablas</td></tr>');
             }
         })
-        .catch(error => {
-            tbody.html('<tr><td colspan="4" class="text-center text-danger">Error al conectar con la BD</td></tr>');
+        .catch(function(error) {
+            console.error('Error cargando tablas:', error);
+            tbody.html('<tr><td colspan="4" class="text-center" style="padding:2rem;color:var(--error)">Error al conectar con la BD</td></tr>');
             Admin.showAlert('No se pudo conectar a la base de datos Firebird.', 'danger', 'Error de conexión');
         });
     },
 
-    /**
-     * Renderizar lista de tablas en DataTable
-     */
     renderTablesList: function(tables) {
-        const tbody = $('#tables-tbody');
-        tbody.empty();
+        const self = this;
+        const tbody = $('#tables-tbody').empty();
 
-        tables.forEach(table => {
-            const name = table.TABLA || table.tabla || '';
+        tables.forEach(function(table) {
+            const name = (table.TABLA || table.tabla || '').trim();
             const records = parseInt(table.REGISTROS || table.registros || 0);
             const columns = parseInt(table.COLUMNAS || table.columnas || 0);
-            
-            const row = $(`
-                <tr data-table="${name}">
-                    <td>
-                        <div class="table-name-cell">
-                            <div class="table-icon">📋</div>
-                            <span class="table-name">${name}</span>
-                        </div>
-                    </td>
-                    <td class="record-count-cell">
-                        <span class="count">${records.toLocaleString('es-ES')}</span>
-                    </td>
-                    <td class="column-count-cell">
-                        ${columns}
-                    </td>
-                    <td>
-                        <button class="table-action-btn" data-table="${name}">
-                            Ver datos →
-                        </button>
-                    </td>
-                </tr>
-            `);
-            tbody.append(row);
+
+            tbody.append(
+                '<tr data-table="' + name + '" class="clickable-row">' +
+                    '<td>' +
+                        '<div class="table-name-cell">' +
+                            '<span class="table-name">' + name + '</span>' +
+                        '</div>' +
+                    '</td>' +
+                    '<td class="record-count-cell">' +
+                        '<span class="count">' + records.toLocaleString('es-ES') + '</span>' +
+                    '</td>' +
+                    '<td class="column-count-cell">' + columns + '</td>' +
+                    '<td>' +
+                        '<button class="table-action-btn" data-table="' + name + '">Ver datos</button>' +
+                    '</td>' +
+                '</tr>'
+            );
         });
 
-        // Vincular eventos de botones
-        $('.table-action-btn').on('click', (e) => {
-            const tableName = $(e.target).data('table');
-            this.selectTable(tableName);
-        });
-
-        // Inicializar DataTable
         this.initTablesDataTable();
     },
 
-    /**
-     * Inicializar DataTable para lista de tablas
-     */
     initTablesDataTable: function() {
-        // Destruir DataTable existente si hay
-        if ($.fn.DataTable.isDataTable('#tables-datatable')) {
-            $('#tables-datatable').DataTable().destroy();
+        if (this._tablesDt) {
+            this._tablesDt.destroy();
         }
 
-        $('#tables-datatable').DataTable({
+        this._tablesDt = $('#tables-datatable').DataTable({
             language: {
                 lengthMenu: 'Mostrar _MENU_ tablas',
                 zeroRecords: 'No se encontraron tablas',
                 info: 'Mostrando _START_ a _END_ de _TOTAL_ tablas',
-                infoEmpty: 'Mostrando 0 a 0 de 0 tablas',
-                infoFiltered: '(filtrado de _MAX_ tablas totales)',
+                infoEmpty: 'Sin resultados',
+                infoFiltered: '(filtrado de _MAX_)',
                 search: 'Buscar:',
-                paginate: {
-                    first: 'Primero',
-                    last: 'Último',
-                    next: '→',
-                    previous: '←'
-                }
+                paginate: { first: 'Primero', last: 'Último', next: '→', previous: '←' }
             },
             pageLength: 25,
-            order: [[1, 'desc']], // Ordenar por registros (desc)
+            order: [[1, 'desc']],
             columns: [
-                { orderable: true },  // Tabla
-                { orderable: true },  // Registros
-                { orderable: true },  // Columnas
-                { orderable: false }  // Acción
+                { orderable: true },
+                { orderable: true },
+                { orderable: true },
+                { orderable: false }
             ],
             dom: '<"top"fl>rt<"bottom"ip>'
         });
     },
 
-    /**
-     * Filtrar lista de tablas
-     */
     filterTablesList: function(query) {
-        if ($.fn.DataTable.isDataTable('#tables-datatable')) {
-            $('#tables-datatable').DataTable().search(query).draw();
+        if (this._tablesDt) {
+            this._tablesDt.search(query).draw();
         }
     },
 
-    /**
-     * Verificar parámetros URL
-     */
+    // ============================================
+    // NAVEGACIÃ“N ENTRE VISTAS
+    // ============================================
+
     checkUrlParams: function() {
         const params = new URLSearchParams(window.location.search);
         const table = params.get('table');
-        if (table) {
-            this.selectTable(table);
-        }
+        if (table) this.selectTable(table);
     },
 
-    /**
-     * Seleccionar tabla (cambiar a vista de datos)
-     */
     selectTable: function(tableName) {
         if (!tableName) return;
-
         this.currentTable = tableName;
         this.filters = [];
         this.showingAll = false;
-        
-        // Actualizar URL
+        this.currentPage = 1;
+
         const url = new URL(window.location);
         url.searchParams.set('table', tableName);
         window.history.pushState({}, '', url);
 
-        // Cambiar a vista de datos
         this.showTableView();
-        
-        // Cargar información de la tabla
         this.loadTableInfo();
     },
 
-    /**
-     * Mostrar vista de tablas
-     */
     showTablesView: function() {
         $('#view-tables').show();
         $('#view-table-data').hide();
-        
-        // Limpiar URL
+
         const url = new URL(window.location);
         url.searchParams.delete('table');
         window.history.pushState({}, '', url);
-        
+
         this.currentTable = null;
     },
 
-    /**
-     * Mostrar vista de datos de tabla
-     */
     showTableView: function() {
         $('#view-tables').hide();
         $('#view-table-data').show();
     },
 
-    /**
-     * Cargar información de la tabla
-     */
+    // ============================================
+    // CARGA DE INFORMACIÃ“N DE TABLA
+    // ============================================
+
     loadTableInfo: function() {
+        var self = this;
         $('#current-table-name').text(this.currentTable);
-        
+
         Admin.post('modules/inspector/ajax/listar_columnas.php', {
             table: this.currentTable
         })
-        .then(response => {
-            this.columns = response.data;
-            this.renderColumns();
-            this.populateFilterFields();
-            this.loadLastRecords(10);
+        .then(function(response) {
+            self.columns = response.data || [];
+            self.renderColumns();
+            self.populateFilterFields();
+            self.loadLastRecords(10);
         })
-        .catch(error => {
-            Admin.showError($('#results-container'), error.message);
+        .catch(function(error) {
+            console.error('Error cargando columnas:', error);
+            Admin.showError($('#results-container'), 'Error al cargar columnas: ' + error.message);
         });
     },
 
-    /**
-     * Renderizar columnas
-     */
     renderColumns: function() {
-        const container = $('#columns-container');
-        container.empty();
+        var self = this;
+        var container = $('#columns-container').empty();
 
-        this.columns.forEach(col => {
-            const chip = $('<div class="column-chip selected">')
-                .text(col.COLUMNA)
-                .attr('data-column', col.COLUMNA)
-                .on('click', (e) => {
-                    $(e.target).toggleClass('selected');
-                    this.updateSql();
-                });
+        this.columns.forEach(function(col) {
+            var name = (col.COLUMNA || '').trim();
+            if (!name) return;
+
+            var chip = $('<div class="column-chip selected">')
+                .text(name)
+                .attr('data-column', name);
             container.append(chip);
         });
-    },
 
-    /**
-     * Poblar campos de filtro
-     */
-    populateFilterFields: function() {
-        const select = $('#filter-field');
-        select.empty().append('<option value="">Campo...</option>');
-
-        this.columns.forEach(col => {
-            select.append(`<option value="${col.COLUMNA}">${col.COLUMNA}</option>`);
+        // Delegate click for column chips
+        container.off('click', '.column-chip').on('click', '.column-chip', function(e) {
+            $(e.currentTarget).toggleClass('selected');
+            self.updateSql();
         });
     },
 
+    populateFilterFields: function() {
+        var select = $('#filter-field').empty().append('<option value="">Campo...</option>');
+
+        this.columns.forEach(function(col) {
+            var name = (col.COLUMNA || '').trim();
+            if (name) select.append('<option value="' + name + '">' + name + '</option>');
+        });
+    },
+
+    // ============================================
+    // CARGA DE DATOS
+    // ============================================
+
     /**
-     * Cargar últimos N registros
+     * Cargar Ãºltimos N registros (carga rÃ¡pida, sin filtros)
      */
     loadLastRecords: function(limit) {
         if (!this.currentTable) return;
 
         this.showingAll = false;
-        this.updateRecordsShownInfo(limit);
+        this.currentPage = 1;
 
-        const selectedColumns = [];
-        $('.column-chip.selected').each(function() {
-            selectedColumns.push($(this).data('column'));
-        });
-
-        const data = {
+        var selectedColumns = this.getSelectedColumns();
+        var data = {
             table: this.currentTable,
-            limit: limit,
-            fields: selectedColumns.join(',')
+            limit: limit
         };
+        if (selectedColumns.length > 0) {
+            data.fields = selectedColumns.join(',');
+        }
 
         Admin.showLoading($('#results-container'));
+        this.showOverlay('Cargando Ãºltimos ' + limit + ' registros...');
 
+        var self = this;
         Admin.post('modules/inspector/ajax/obtener_ultimos.php', data)
-        .then(response => {
-            this.data = response.data;
-            this.totalRecords = response.count || 0;
-            this.renderResults(response);
-            this.updateSql();
-            this.updateCount(this.totalRecords);
-            this.updateRecordsShownInfo(limit, this.totalRecords);
+        .then(function(response) {
+            self.hideOverlay();
+            self.data = response.data || [];
+            self.totalRecords = self.data.length;
+            self.renderResults(response, false);
+            self.updateCount(self.totalRecords);
+            self.updateRecordsShownInfo(self.data.length, self.totalRecords);
+            self.updateSql();
         })
-        .catch(error => {
-            Admin.showError($('#results-container'), error.message);
+        .catch(function(error) {
+            self.hideOverlay();
+            console.error('Error cargando registros:', error);
+            Admin.showError($('#results-container'), 'Error al cargar datos: ' + error.message);
         });
     },
 
     /**
-     * Cargar todos los registros
+     * Cargar todos los registros de la tabla
      */
     loadAllRecords: function() {
         if (!this.currentTable) return;
 
         this.showingAll = true;
-        $('#records-shown').hide();
+        this.currentPage = 1;
 
-        const selectedColumns = [];
-        $('.column-chip.selected').each(function() {
-            selectedColumns.push($(this).data('column'));
-        });
-
-        const data = {
-            table: this.currentTable,
-            fields: selectedColumns.join(','),
-            page: 1,
-            per_page: 50
-        };
-
-        // Agregar filtros
-        this.filters.forEach((filter, index) => {
-            data[`filter_field_${index}`] = filter.field;
-            data[`filter_operator_${index}`] = filter.operator;
-            data[`filter_value_${index}`] = filter.value;
-        });
+        var data = this.buildDataParams();
+        data.page = 1;
+        data.per_page = 10000;
 
         Admin.showLoading($('#results-container'));
+        this.showOverlay('Cargando todos los registros...');
 
+        var self = this;
         Admin.post('modules/inspector/ajax/obtener_datos.php', data)
-        .then(response => {
-            this.data = response.data;
-            this.totalRecords = response.count || 0;
-            this.renderResults(response, true);
-            this.updateSql();
-            this.updateCount(this.totalRecords);
+        .then(function(response) {
+            self.hideOverlay();
+            var inner = response.data || {};
+            self.data = inner.data || [];
+            self.totalRecords = inner.total || self.data.length;
+            self.renderResults({ data: self.data }, true);
+            self.updateCount(self.totalRecords);
+            self.updateRecordsShownInfo(self.data.length, self.totalRecords);
+            self.updateSql();
         })
-        .catch(error => {
-            Admin.showError($('#results-container'), error.message);
+        .catch(function(error) {
+            self.hideOverlay();
+            console.error('Error cargando todos:', error);
+            Admin.showError($('#results-container'), 'Error al cargar datos: ' + error.message);
         });
     },
 
     /**
-     * Cargar datos con filtros
+     * Aplicar filtros activos y cargar datos
      */
-    loadDataWithFilters: function() {
-        if (this.showingAll) {
-            this.loadAllRecords();
-        } else {
-            this.loadLastRecords(10);
-        }
-    },
+    applyFilters: function() {
+        if (!this.currentTable) return;
 
-    /**
-     * Renderizar resultados
-     */
-    renderResults: function(response, paginate = false) {
-        const container = $('#results-container');
-        
-        if (!response.data || response.data.length === 0) {
-            container.html('<p class="text-center text-gray-500" style="padding: 2rem;">No se encontraron registros</p>');
+        if (this.filters.length === 0) {
+            this.loadLastRecords(10);
             return;
         }
 
-        const html = Admin.createTable(response.data);
+        this.showingAll = true;
+        this.currentPage = 1;
+
+        var data = this.buildDataParams();
+        data.page = 1;
+        data.per_page = 10000;
+
+        Admin.showLoading($('#results-container'));
+        this.showOverlay('Buscando registros...');
+
+        var self = this;
+        Admin.post('modules/inspector/ajax/obtener_datos.php', data)
+        .then(function(response) {
+            self.hideOverlay();
+            var inner = response.data || {};
+            self.data = inner.data || [];
+            self.totalRecords = inner.total || self.data.length;
+            self.renderResults({ data: self.data }, true);
+            self.updateCount(self.totalRecords);
+            self.updateRecordsShownInfo(self.data.length, self.totalRecords);
+            self.updateSql();
+        })
+        .catch(function(error) {
+            self.hideOverlay();
+            console.error('Error aplicando filtros:', error);
+            Admin.showError($('#results-container'), 'Error al buscar: ' + error.message);
+        });
+    },
+
+    /**
+     * Construir parÃ¡metros de envÃ­o para obtener_datos.php
+     */
+    buildDataParams: function() {
+        var params = {
+            table: this.currentTable
+        };
+
+        var selectedColumns = this.getSelectedColumns();
+        if (selectedColumns.length > 0) {
+            params.fields = selectedColumns.join(',');
+        }
+
+        this.filters.forEach(function(filter, index) {
+            params['filter_field_' + index] = filter.field;
+            params['filter_operator_' + index] = filter.operator;
+            params['filter_value_' + index] = filter.value;
+        });
+
+        return params;
+    },
+
+    /**
+     * Obtener columnas seleccionadas en el grid
+     */
+    getSelectedColumns: function() {
+        var cols = [];
+        $('.column-chip.selected').each(function() {
+            cols.push($(this).data('column'));
+        });
+        return cols;
+    },
+
+    // ============================================
+    // FILTROS
+    // ============================================
+
+    addFilter: function() {
+        var field = $('#filter-field').val();
+        var operator = $('#filter-operator').val();
+        var value = $('#filter-value').val();
+
+        if (!field || !value) {
+            Admin.showAlert('Selecciona un campo y escribe un valor', 'warning');
+            return;
+        }
+
+        this.filters.push({ field: field, operator: operator, value: value });
+        this.renderFilters();
+        this.applyFilters();
+
+        $('#filter-field').val('');
+        $('#filter-value').val('').focus();
+    },
+
+    renderFilters: function() {
+        var self = this;
+        var container = $('#active-filters').empty();
+
+        this.filters.forEach(function(filter, index) {
+            var opLabel = filter.operator === 'LIKE' ? 'contiene' : filter.operator;
+            container.append(
+                '<div class="filter-tag">' +
+                    '<span>' + filter.field + ' ' + opLabel + ' &quot;' + filter.value + '&quot;</span>' +
+                    '<span class="filter-tag-remove" data-index="' + index + '">&times;</span>' +
+                '</div>'
+            );
+        });
+
+        container.off('click', '.filter-tag-remove').on('click', '.filter-tag-remove', function(e) {
+            var idx = $(e.currentTarget).data('index');
+            self.removeFilter(idx);
+        });
+    },
+
+    removeFilter: function(index) {
+        this.filters.splice(index, 1);
+        this.renderFilters();
+        this.applyFilters();
+    },
+
+    clearFilters: function() {
+        this.filters = [];
+        this.renderFilters();
+        this.loadLastRecords(10);
+    },
+
+    // ============================================
+    // RENDERIZADO DE RESULTADOS
+    // ============================================
+
+    renderResults: function(response, useDataTable) {
+        var container = $('#results-container');
+
+        if (!response.data || response.data.length === 0) {
+            container.html(
+                '<div style="text-align:center;padding:3rem;color:var(--text-tertiary)">' +
+                    '<div style="font-size:2rem;margin-bottom:1rem">ðŸ“­</div>' +
+                    '<p>No se encontraron registros</p>' +
+                '</div>'
+            );
+            return;
+        }
+
+        // Destruir DataTable previa si existe
+        if (this._resultsDt) {
+            this._resultsDt.destroy();
+            this._resultsDt = null;
+        }
+
+        var html = Admin.createTable(response.data);
         container.html(html);
 
-        // Inicializar DataTable con paginación si se muestran todos
-        if (paginate) {
-            Admin.initDataTable('.data-table', {
+        if (useDataTable && response.data.length > 10) {
+            this._resultsDt = container.find('.data-table').DataTable({
+                language: {
+                    search: "Buscar:",
+                    lengthMenu: "Mostrar _MENU_ registros",
+                    info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    infoEmpty: "Sin resultados",
+                    infoFiltered: "(filtrado de _MAX_)",
+                    zeroRecords: "No se encontraron resultados",
+                    paginate: { first: "Primero", last: "Ãšltimo", next: "â†’", previous: "â†" }
+                },
                 pageLength: 25,
-                order: [[0, 'asc']]
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
+                order: [[0, 'asc']],
+                dom: '<"top"fl>rt<"bottom"ip>'
             });
         }
     },
 
-    /**
-     * Actualizar contador
-     */
+    // ============================================
+    // CONTADORES E INFORMACIÃ“N
+    // ============================================
+
     updateCount: function(count) {
         $('#results-count').text(count.toLocaleString('es-ES'));
         $('#current-table-count').text(count.toLocaleString('es-ES') + ' registros');
         $('#show-all-count').text(count.toLocaleString('es-ES'));
     },
 
-    /**
-     * Actualizar información de registros mostrados
-     */
     updateRecordsShownInfo: function(shown, total) {
-        if (total !== undefined) {
+        if (total !== undefined && shown !== undefined && shown < total) {
             $('#records-shown').show();
             $('#shown-count').text(shown);
             $('#total-count').text(total.toLocaleString('es-ES'));
@@ -462,94 +582,29 @@ const Inspector = {
         }
     },
 
-    /**
-     * Agregar filtro
-     */
-    addFilter: function() {
-        const field = $('#filter-field').val();
-        const operator = $('#filter-operator').val();
-        const value = $('#filter-value').val();
+    // ============================================
+    // SQL GENERADO
+    // ============================================
 
-        if (!field || !value) {
-            Admin.showAlert('Selecciona un campo y valor', 'warning');
-            return;
-        }
-
-        this.filters.push({ field, operator, value });
-        this.renderFilters();
-        this.loadDataWithFilters();
-
-        // Limpiar campos
-        $('#filter-field').val('');
-        $('#filter-value').val('');
-    },
-
-    /**
-     * Renderizar filtros activos
-     */
-    renderFilters: function() {
-        const container = $('#active-filters');
-        container.empty();
-
-        this.filters.forEach((filter, index) => {
-            const tag = $(`
-                <div class="filter-tag">
-                    <span>${filter.field} ${filter.operator} "${filter.value}"</span>
-                    <span class="filter-tag-remove" data-index="${index}">&times;</span>
-                </div>
-            `);
-            container.append(tag);
-        });
-
-        // Evento para eliminar filtro
-        $('.filter-tag-remove').on('click', (e) => {
-            const index = $(e.target).data('index');
-            this.removeFilter(index);
-        });
-    },
-
-    /**
-     * Eliminar filtro
-     */
-    removeFilter: function(index) {
-        this.filters.splice(index, 1);
-        this.renderFilters();
-        this.loadDataWithFilters();
-    },
-
-    /**
-     * Limpiar filtros
-     */
-    clearFilters: function() {
-        this.filters = [];
-        this.renderFilters();
-        this.loadDataWithFilters();
-    },
-
-    /**
-     * Actualizar SQL generado
-     */
     updateSql: function() {
-        const selectedColumns = [];
-        $('.column-chip.selected').each(function() {
-            selectedColumns.push($(this).data('column'));
-        });
-
-        const fields = selectedColumns.length > 0 ? selectedColumns.join(', ') : '*';
-        let sql = `SELECT ${fields}\nFROM ${this.currentTable}`;
+        var selectedColumns = this.getSelectedColumns();
+        var fields = selectedColumns.length > 0 ? selectedColumns.join(', ') : '*';
+        var sql = 'SELECT ' + fields + '\nFROM ' + this.currentTable;
 
         if (this.filters.length > 0) {
-            const conditions = this.filters.map(f => {
+            var conditions = this.filters.map(function(f) {
                 if (f.operator === 'LIKE') {
-                    return `${f.field} LIKE '%${f.value}%'`;
+                    return f.field + " LIKE '%" + f.value + "%'";
                 }
-                return `${f.field} ${f.operator} '${f.value}'`;
+                return f.field + ' ' + f.operator + " '" + f.value + "'";
             });
-            sql += `\nWHERE ${conditions.join('\n  AND ')}`;
+            sql += '\nWHERE ' + conditions.join('\n  AND ');
         }
 
-        sql += '\nORDER BY ' + (selectedColumns[0] || '1');
-        
+        if (selectedColumns.length > 0) {
+            sql += '\nORDER BY ' + selectedColumns[0];
+        }
+
         if (!this.showingAll) {
             sql += '\nROWS 1 TO 10';
         }
@@ -557,27 +612,24 @@ const Inspector = {
         $('#sql-generated').text(sql);
     },
 
-    /**
-     * Abrir modal SQL
-     */
-    openSqlModal: function() {
+    // ============================================
+    // SQL LIBRE
+    // ============================================
+
+    openSqlTab: function() {
+        var tableName = this.currentTable || 'CLIENTES';
+        $('#sql-input').val('SELECT * FROM ' + tableName);
         $('#sql-modal').show();
-        $('#sql-input').focus();
+        setTimeout(function() { $('#sql-input').focus(); }, 100);
     },
 
-    /**
-     * Cerrar modales
-     */
     closeModals: function() {
         $('.modal').hide();
     },
 
-    /**
-     * Ejecutar SQL libre
-     */
     executeSql: function() {
-        const sql = $('#sql-input').val().trim();
-        
+        var sql = $('#sql-input').val().trim();
+
         if (!sql) {
             Admin.showAlert('Escribe una consulta SQL', 'warning');
             return;
@@ -585,22 +637,25 @@ const Inspector = {
 
         Admin.showLoading($('#results-container'));
         this.closeModals();
+        this.showOverlay('Ejecutando consulta SQL...');
 
-        Admin.post('modules/inspector/ajax/ejecutar_sql.php', {
-            sql: sql
+        var self = this;
+        Admin.post('modules/inspector/ajax/ejecutar_sql.php', { sql: sql })
+        .then(function(response) {
+            self.hideOverlay();
+            var inner = response.data || {};
+            self.data = inner.data || [];
+            self.totalRecords = inner.rows || self.data.length;
+            self.renderResults({ data: self.data }, true);
+            self.updateCount(self.totalRecords);
+            $('#sql-generated').text(sql);
         })
-        .then(response => {
-            this.data = response.data;
-            this.renderResults(response, true);
-            this.updateCount(response.count || 0);
-        })
-        .catch(error => {
-            Admin.showError($('#results-container'), error.message);
+        .catch(function(error) {
+            self.hideOverlay();
+            Admin.showError($('#results-container'), 'Error SQL: ' + error.message);
         });
     }
 };
 
-// Inicializar cuando el DOM esté listo
-$(document).ready(function() {
-    Inspector.init();
-});
+// DO NOT use $(document).ready() here â€” Admin.loadModule() calls Inspector.init()
+// after the inspector HTML is loaded into the DOM.

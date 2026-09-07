@@ -1,67 +1,75 @@
 <?php
-/**
- * ============================================
- * OBTENER DATOS - AJAX
- * ============================================
- * Obtiene datos de una tabla con filtros y paginación
- */
+header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Database.php';
 require_once __DIR__ . '/../../../core/Response.php';
-require_once __DIR__ . '/../../../core/Request.php';
-require_once __DIR__ . '/../../../core/CRUD.php';
 
 try {
-    $request = new Request();
-    $request->required('table');
+    $table = $_POST['table'] ?? '';
+    $page = max(1, intval($_POST['page'] ?? 1));
+    $perPage = max(1, min(500, intval($_POST['per_page'] ?? 25)));
+    $fields = $_POST['fields'] ?? '';
+    $filters = $_POST['filters'] ?? [];
     
-    $table = $request->sanitize($request->get('table'));
-    $page = $request->int('page', 1);
-    $perPage = $request->int('per_page', 50);
-    $offset = ($page - 1) * $perPage;
-    
-    // Obtener campos seleccionados
-    $fields = $request->get('fields', '*');
-    if (is_string($fields) && $fields !== '*') {
-        $fields = array_map('trim', explode(',', $fields));
+    if (empty($table)) {
+        Response::error('Parámetro table requerido');
+        exit;
     }
     
-    // Construir filtros
-    $filters = [];
-    $i = 0;
-    while ($request->has("filter_field_{$i}")) {
-        $field = $request->sanitize($request->get("filter_field_{$i}"));
-        $operator = $request->sanitize($request->get("filter_operator_{$i}", '='));
-        $value = $request->get("filter_value_{$i}");
-        
-        if ($field && $value !== '') {
-            $filters[$field] = [
-                'operator' => $operator,
-                'value' => $value
-            ];
-        }
-        $i++;
-    }
-    
-    // Conectar y obtener datos
     $db = Database::getInstance(DB_CONFIG);
-    $crud = new CRUD($db, $table);
+    $pdo = $db->getConnection();
     
-    $data = $crud->getAll($filters, ['1' => 'ASC'], $perPage, $offset);
-    $total = $crud->count($filters);
+    $countSql = "SELECT COUNT(*) AS total FROM {$table}";
+    $countResult = $pdo->query($countSql)->fetch(PDO::FETCH_ASSOC);
+    $total = intval($countResult['TOTAL'] ?? 0);
     
-    // Formatear datos si se especificaron campos
-    if (is_array($fields) && !empty($fields)) {
-        $data = array_map(function($row) use ($fields) {
-            return array_intersect_key($row, array_flip($fields));
-        }, $data);
+    $fieldSql = '*';
+    if (!empty($fields)) {
+        $fieldList = array_map('trim', explode(',', $fields));
+        $fieldSql = implode(', ', $fieldList);
     }
     
-    Response::paginated($data, $total, $page, $perPage);
+    $where = '';
+    $params = [];
+    if (!empty($filters) && is_array($filters)) {
+        $conditions = [];
+        foreach ($filters as $f) {
+            $col = $f['field'] ?? '';
+            $op = $f['operator'] ?? 'LIKE';
+            $val = $f['value'] ?? '';
+            if (empty($col) || empty($val)) continue;
+            
+            $colEscaped = '"' . str_replace('"', '""', $col) . '"';
+            switch (strtoupper($op)) {
+                case '=': $conditions[] = "{$colEscaped} = ?"; $params[] = $val; break;
+                case '!=': $conditions[] = "{$colEscaped} != ?"; $params[] = $val; break;
+                case '>': $conditions[] = "{$colEscaped} > ?"; $params[] = $val; break;
+                case '<': $conditions[] = "{$colEscaped} < ?"; $params[] = $val; break;
+                case '>=': $conditions[] = "{$colEscaped} >= ?"; $params[] = $val; break;
+                case '<=': $conditions[] = "{$colEscaped} <= ?"; $params[] = $val; break;
+                default: $conditions[] = "{$colEscaped} LIKE ?"; $params[] = "%{$val}%";
+            }
+        }
+        if (!empty($conditions)) {
+            $where = ' WHERE ' . implode(' AND ', $conditions);
+        }
+    }
     
-} catch (InvalidArgumentException $e) {
-    Response::error($e->getMessage(), 400);
+    $skip = ($page - 1) * $perPage;
+    $sql = "SELECT FIRST {$perPage} SKIP {$skip} {$fieldSql} FROM {$table}{$where}";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    Response::success([
+        'data' => $data,
+        'total' => $total,
+        'page' => $page,
+        'per_page' => $perPage,
+        'total_pages' => ceil($total / $perPage),
+    ]);
 } catch (Exception $e) {
-    Response::error("Error al obtener datos: " . $e->getMessage(), 500);
+    Response::error($e->getMessage());
 }

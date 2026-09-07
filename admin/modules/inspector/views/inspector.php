@@ -1,158 +1,179 @@
-<?php
-/**
- * ============================================
- * INSPECTOR - Vista Principal (v2)
- * ============================================
- * Nuevo flujo: DataTable tablas → 10 registros → Mostrar todos
- */
-?>
-
 <div class="inspector-container">
-    <!-- VISTA 1: Listado de Tablas -->
-    <div id="view-tables" class="tables-list-container">
-        <div class="tables-list-header">
-            <h2 class="tables-list-title">
-                <span class="icon">📊</span>
-                Tablas de Base de Datos
-            </h2>
-            <div class="tables-list-search">
-                <input type="text" id="tables-search" class="form-input" placeholder="Buscar tabla...">
-                <button id="btn-refresh-tables" class="btn btn-secondary" title="Actualizar">
-                    🔄
-                </button>
-            </div>
-        </div>
-        <div class="tables-list-body">
-            <table id="tables-datatable" class="data-table" style="width:100%">
-                <thead>
-                    <tr>
-                        <th>Tabla</th>
-                        <th>Registros</th>
-                        <th>Columnas</th>
-                        <th>Acción</th>
-                    </tr>
-                </thead>
-                <tbody id="tables-tbody">
-                    <!-- Skeleton loading -->
-                    <tr class="skeleton-row"><td colspan="4"><div class="skeleton-cell name"></div></td></tr>
-                    <tr class="skeleton-row"><td colspan="4"><div class="skeleton-cell name"></div></td></tr>
-                    <tr class="skeleton-row"><td colspan="4"><div class="skeleton-cell name"></div></td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- VISTA 2: Datos de una tabla -->
-    <div id="view-table-data" class="table-view-container" style="display: none;">
-        <!-- Header con volver y título -->
-        <div class="table-view-header">
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <button id="btn-back-tables" class="table-view-back">
-                    ← Volver a Tablas
-                </button>
-                <h2 class="table-view-title">
-                    📋 <span id="current-table-name">-</span>
-                    <span class="badge" id="current-table-count">0 registros</span>
-                </h2>
-            </div>
-            <div class="table-view-actions">
-                <button id="btn-show-last-10" class="btn btn-secondary btn-sm">
-                    📄 Últimos 10
-                </button>
-                <button id="btn-show-all" class="btn-show-all">
-                    📥 Mostrar todos (<span id="show-all-count">0</span>)
-                </button>
-                <button id="btn-sql" class="btn btn-secondary btn-sm">
-                    📝 SQL Libre
-                </button>
-            </div>
-        </div>
-
-        <!-- Columnas -->
-        <div class="inspector-section">
-            <h3 class="section-title">📋 Columnas</h3>
-            <div id="columns-container" class="columns-grid"></div>
-        </div>
-
-        <!-- Filtros -->
-        <div class="inspector-section">
-            <h3 class="section-title">🔍 Filtros</h3>
-            <div id="filters-container">
-                <div class="filter-row">
-                    <select id="filter-field" class="form-select filter-field">
-                        <option value="">Campo...</option>
-                    </select>
-                    <select id="filter-operator" class="form-select filter-operator">
-                        <option value="=">=</option>
-                        <option value="!=">≠</option>
-                        <option value="LIKE">Contiene</option>
-                        <option value=">">></option>
-                        <option value="<"><</option>
-                        <option value=">=">≥</option>
-                        <option value="<=">≤</option>
-                    </select>
-                    <input type="text" id="filter-value" class="form-input filter-value" placeholder="Valor">
-                    <button id="btn-add-filter" class="btn btn-secondary btn-sm">+ Agregar</button>
+    <!-- Vista: Lista de tablas -->
+    <div id="view-tables">
+        <div class="inspector-section tables-card">
+            <div class="tables-card-header">
+                <div class="tables-card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                    <h3>Tablas de la Base de Datos</h3>
                 </div>
-                <div id="active-filters" class="active-filters"></div>
-            </div>
-            <div class="filter-actions">
-                <button id="btn-search" class="btn btn-primary">🔍 Buscar</button>
-                <button id="btn-clear-filters" class="btn btn-secondary">Limpiar Filtros</button>
-            </div>
-        </div>
-
-        <!-- SQL Generado -->
-        <div class="inspector-section">
-            <h3 class="section-title">📝 SQL Generado</h3>
-            <div class="sql-box">
-                <pre id="sql-generated" class="sql-code"></pre>
-                <button id="btn-copy-sql" class="btn btn-sm btn-secondary">📋 Copiar</button>
-            </div>
-        </div>
-
-        <!-- Resultados -->
-        <div class="inspector-section">
-            <h3 class="section-title">
-                📊 Resultados
-                <span id="results-count" class="badge badge-info">0</span>
-                <span id="records-shown" class="records-shown-info" style="display: none;">
-                    <span class="icon">ℹ️</span>
-                    Mostrando <span id="shown-count">0</span> de <span id="total-count">0</span> registros
-                </span>
-            </h3>
-            <div id="results-container" class="data-table-wrapper">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Cargando datos...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal SQL Libre -->
-    <div id="sql-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>📝 Ejecutar SQL</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-warning" style="margin-bottom: 1rem;">
-                    <span class="alert-icon">⚠️</span>
-                    <div class="alert-content">
-                        <strong>Solo consultas SELECT de lectura</strong><br>
-                        Las operaciones INSERT, UPDATE, DELETE, DROP, ALTER, CREATE están bloqueadas por seguridad.
+                <div class="tables-card-actions">
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="tables-search" class="search-input" placeholder="Buscar tablas...">
                     </div>
+                    <button id="btn-refresh-tables" class="btn btn-icon btn-secondary" title="Actualizar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    </button>
                 </div>
-                <textarea id="sql-input" class="form-textarea" rows="6" placeholder="SELECT * FROM CLIENTES WHERE ACTIVO = 1"></textarea>
             </div>
-            <div class="modal-footer">
-                <button id="btn-execute-sql" class="btn btn-primary">▶ Ejecutar</button>
-                <button class="btn btn-secondary modal-close">Cancelar</button>
+            <div class="data-table-wrapper">
+                <table id="tables-datatable" class="data-table" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Tabla</th>
+                            <th>Registros</th>
+                            <th>Columnas</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tables-tbody">
+                        <tr><td colspan="4"><div class="loading"><div class="spinner"></div><p>Cargando tablas...</p></div></td></tr>
+                    </tbody>
+                </table>
             </div>
+        </div>
+    </div>
+
+    <!-- Vista: Datos de tabla -->
+    <div id="view-table-data" style="display:none;">
+        <!-- Header -->
+        <div class="table-data-header">
+            <div class="table-data-header-left">
+                <button id="btn-back-tables" class="btn btn-back" title="Volver a tablas">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    Tablas
+                </button>
+                <div class="table-data-title-group">
+                    <h2 id="current-table-name" class="table-data-title">Tabla</h2>
+                    <span id="current-table-count" class="badge badge-primary">0 registros</span>
+                </div>
+            </div>
+            <div class="table-data-header-right">
+                <button id="btn-show-last-10" class="btn btn-secondary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Últimos 10
+                </button>
+                <button id="btn-show-all" class="btn btn-secondary btn-sm">
+                    Ver todos (<span id="show-all-count">0</span>)
+                </button>
+                <button id="btn-sql" class="btn btn-primary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    SQL
+                </button>
+            </div>
+        </div>
+
+        <div class="inspector-grid">
+            <!-- Sidebar -->
+            <aside class="inspector-sidebar">
+                <!-- Columnas -->
+                <div class="sidebar-card">
+                    <div class="sidebar-card-header">
+                        <h4 class="sidebar-card-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                            Columnas
+                        </h4>
+                        <div class="sidebar-card-actions">
+                            <button id="btn-select-all-cols" class="btn btn-xs btn-ghost">Todas</button>
+                            <button id="btn-select-none-cols" class="btn btn-xs btn-ghost">Ninguna</button>
+                        </div>
+                    </div>
+                    <div id="columns-container" class="columns-chips"></div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="sidebar-card">
+                    <div class="sidebar-card-header">
+                        <h4 class="sidebar-card-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                            Filtros
+                        </h4>
+                        <button id="btn-clear-filters" class="btn btn-xs btn-ghost">Limpiar</button>
+                    </div>
+                    <div id="active-filters" class="active-filters"></div>
+                    <div class="filter-form">
+                        <select id="filter-field" class="form-select form-select-sm">
+                            <option value="">Seleccionar campo...</option>
+                        </select>
+                        <select id="filter-operator" class="form-select form-select-sm">
+                            <option value="LIKE">Contiene</option>
+                            <option value="=">Igual a</option>
+                            <option value="!=">No igual</option>
+                            <option value=">">Mayor que</option>
+                            <option value="<">Menor que</option>
+                            <option value=">=">Mayor o igual</option>
+                            <option value="<=">Menor o igual</option>
+                        </select>
+                        <input type="text" id="filter-value" class="form-input form-input-sm" placeholder="Valor...">
+                        <button id="btn-add-filter" class="btn btn-sm btn-outline">+ Agregar filtro</button>
+                    </div>
+                    <button id="btn-search" class="btn btn-primary btn-block btn-apply">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Aplicar Filtros
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Main: SQL + Resultados -->
+            <main class="inspector-main">
+                <!-- SQL Generado (inline) -->
+                <div class="sql-generated-strip">
+                    <div class="sql-generated-strip-header">
+                        <h4 class="sidebar-card-title">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            SQL Generado
+                        </h4>
+                        <button id="btn-copy-sql" class="btn btn-xs btn-ghost" title="Copiar al portapapeles">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            Copiar
+                        </button>
+                    </div>
+                    <pre class="sql-preview"><code id="sql-generated">SELECT * FROM tabla</code></pre>
+                </div>
+
+                <!-- Resultados -->
+                <div class="results-card inspector-section">
+                    <div id="results-container" class="data-table-wrapper results-table-wrapper">
+                        <div class="loading"><div class="spinner"></div><p>Cargando datos...</p></div>
+                    </div>
+                    <div id="results-info" class="results-info" style="display:none;">
+                        <div class="results-info-left">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <span><strong id="results-count">0</strong> registros encontrados</span>
+                        </div>
+                        <span id="results-time" class="results-info-time"></span>
+                    </div>
+                    <span id="records-shown" style="display:none;">
+                        Mostrando <span id="shown-count">0</span> de <span id="total-count">0</span> registros
+                    </span>
+                </div>
+            </main>
         </div>
     </div>
 </div>
 
-<!-- CSS adicional para inspector (movido a admin.css en FASE 2) -->
+<!-- SQL Modal -->
+<div id="sql-modal" class="modal" style="display:none;">
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-md">
+        <div class="modal-header">
+            <h3>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Ejecutar SQL
+            </h3>
+            <button class="modal-close" id="btn-close-sql-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <textarea id="sql-input" class="sql-editor" rows="6" placeholder="Escribe tu consulta SQL aquí..."></textarea>
+            <p class="sql-editor-hint">Solo se permiten consultas SELECT</p>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-cancel-sql" class="btn btn-secondary">Cancelar</button>
+            <button id="btn-execute-sql" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Ejecutar
+            </button>
+        </div>
+    </div>
+</div>

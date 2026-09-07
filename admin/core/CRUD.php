@@ -38,7 +38,7 @@ class CRUD
      */
     public function getAll($filters = [], $order = [], $limit = 100, $offset = 0)
     {
-        $sql = "SELECT * FROM {$this->table}";
+        $sql = "SELECT * FROM \"{$this->table}\"";
         $params = [];
 
         // Aplicar filtros
@@ -46,9 +46,15 @@ class CRUD
             $conditions = [];
             foreach ($filters as $field => $value) {
                 if (is_array($value)) {
-                    $operator = $value['operator'] ?? '=';
-                    $conditions[] = "{$field} {$operator} :{$field}";
-                    $params[$field] = $value['value'];
+                    $operator = strtoupper($value['operator'] ?? '=');
+                    $val = $value['value'];
+                    if ($operator === 'LIKE') {
+                        $conditions[] = "{$field} LIKE :{$field}";
+                        $params[$field] = "%{$val}%";
+                    } else {
+                        $conditions[] = "{$field} {$operator} :{$field}";
+                        $params[$field] = $val;
+                    }
                 } else {
                     $conditions[] = "{$field} = :{$field}";
                     $params[$field] = $value;
@@ -67,8 +73,10 @@ class CRUD
             $sql .= " ORDER BY " . implode(', ', $orderParts);
         }
 
-        // Aplicar paginación (Firebird syntax)
-        $sql .= " ROWS {$offset} TO " . ($offset + $limit);
+        // Aplicar paginación (Firebird syntax - ROWS is 1-based)
+        $startRow = $offset + 1;
+        $endRow = $offset + $limit;
+        $sql .= " ROWS {$startRow} TO {$endRow}";
 
         return $this->db->query($sql, $params);
     }
@@ -81,7 +89,7 @@ class CRUD
     public function getById($id)
     {
         $pk = $this->getPrimaryKey();
-        $sql = "SELECT * FROM {$this->table} WHERE {$pk} = :id";
+        $sql = "SELECT * FROM \"{$this->table}\" WHERE {$pk} = :id";
         $result = $this->db->query($sql, ['id' => $id]);
         
         return $result[0] ?? null;
@@ -94,16 +102,22 @@ class CRUD
      */
     public function count($filters = [])
     {
-        $sql = "SELECT COUNT(*) AS total FROM {$this->table}";
+        $sql = "SELECT COUNT(*) AS total FROM \"{$this->table}\"";
         $params = [];
 
         if (!empty($filters)) {
             $conditions = [];
             foreach ($filters as $field => $value) {
                 if (is_array($value)) {
-                    $operator = $value['operator'] ?? '=';
-                    $conditions[] = "{$field} {$operator} :{$field}";
-                    $params[$field] = $value['value'];
+                    $operator = strtoupper($value['operator'] ?? '=');
+                    $val = $value['value'];
+                    if ($operator === 'LIKE') {
+                        $conditions[] = "{$field} LIKE :{$field}";
+                        $params[$field] = "%{$val}%";
+                    } else {
+                        $conditions[] = "{$field} {$operator} :{$field}";
+                        $params[$field] = $val;
+                    }
                 } else {
                     $conditions[] = "{$field} = :{$field}";
                     $params[$field] = $value;
@@ -113,7 +127,7 @@ class CRUD
         }
 
         $result = $this->db->query($sql, $params);
-        return (int)($result[0]['total'] ?? 0);
+        return (int)($result[0]['TOTAL'] ?? 0);
     }
 
     // ============================================
@@ -193,7 +207,7 @@ class CRUD
      */
     public function search($field, $value, $limit = 20)
     {
-        $sql = "SELECT * FROM {$this->table} 
+        $sql = "SELECT * FROM \"{$this->table}\" 
                 WHERE {$field} LIKE :search 
                 ORDER BY {$field} 
                 ROWS 1 TO {$limit}";
@@ -228,10 +242,10 @@ class CRUD
     public function exists($id)
     {
         $pk = $this->getPrimaryKey();
-        $sql = "SELECT COUNT(*) AS total FROM {$this->table} WHERE {$pk} = :id";
+        $sql = "SELECT COUNT(*) AS total FROM \"{$this->table}\" WHERE {$pk} = :id";
         $result = $this->db->query($sql, ['id' => $id]);
         
-        return (int)($result[0]['total'] ?? 0) > 0;
+        return (int)($result[0]['TOTAL'] ?? 0) > 0;
     }
 
     /**

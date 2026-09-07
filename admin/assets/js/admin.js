@@ -159,6 +159,12 @@ const Admin = {
                 if (typeof Inspector !== 'undefined' && module === 'inspector') {
                     Inspector.init();
                 }
+                if (typeof SqlModule !== 'undefined' && module === 'sql') {
+                    SqlModule.init();
+                }
+                if (typeof Api !== 'undefined' && module === 'api') {
+                    Api.init();
+                }
             },
             error: function(xhr, status, error) {
                 Admin.showError(content, 'Error al cargar el módulo');
@@ -337,13 +343,13 @@ const Admin = {
         if (mainContent) {
             mainContent.insertAdjacentHTML('afterbegin', alertHtml);
             
-            // Auto-ocultar después de 5 segundos
-            setTimeout(() => {
-                const alerts = mainContent.querySelectorAll('.alert');
-                if (alerts.length > 0) {
-                    alerts[0].remove();
-                }
-            }, 5000);
+            // Auto-ocultar después de 5 segundos (the last inserted alert)
+            const inserted = mainContent.querySelector('.alert');
+            if (inserted) {
+                setTimeout(() => {
+                    if (inserted.parentNode) inserted.remove();
+                }, 5000);
+            }
         }
     },
 

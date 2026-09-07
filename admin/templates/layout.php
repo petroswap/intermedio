@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="<?= APP_NAME ?> - Inspector de Base de Datos y Preparador de API">
+    <meta name="description" content="<?= APP_NAME ?> - Gestión de datos y endpoints">
     <title><?= APP_NAME ?> - <?= $currentModule['name'] ?></title>
     
     <!-- CSS -->
@@ -12,19 +12,29 @@
     <link rel="stylesheet" href="assets/lib/select2.min.css">
     
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛽</text></svg>">
+    
+    <!-- Theme init (before body to prevent FOUC) -->
+    <script>
+        (function() {
+            var saved = localStorage.getItem('admin_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+        })();
+    </script>
 </head>
 <body>
-    <!-- Skip Link (Accesibilidad) -->
     <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 
-    <!-- Header -->
     <header class="header" role="banner">
         <div class="header-left">
-            <span class="header-logo" aria-hidden="true">⚙️</span>
+            <span class="header-logo" aria-hidden="true">⛽</span>
             <h1 class="header-title"><?= APP_NAME ?></h1>
         </div>
         <div class="header-right">
+            <button id="theme-toggle" class="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">
+                <span class="theme-icon-light">☀️</span>
+                <span class="theme-icon-dark">🌙</span>
+            </button>
             <span class="header-version">v<?= APP_VERSION ?></span>
             <span class="header-env <?= APP_ENV === 'local' ? 'env-local' : 'env-production' ?>" 
                   role="status"
@@ -34,7 +44,6 @@
         </div>
     </header>
 
-    <!-- Navegación -->
     <nav class="nav" role="navigation" aria-label="Navegación principal">
         <ul class="nav-tabs" role="tablist">
             <?php foreach ($modules as $key => $mod): ?>
@@ -51,7 +60,6 @@
         </ul>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="content" id="main-content" role="main">
         <div class="content-header">
             <h2 class="content-title">
@@ -62,7 +70,6 @@
         </div>
 
         <div class="content-body">
-            <!-- El contenido se carga dinámicamente -->
             <div class="loading" aria-label="Cargando">
                 <div class="spinner" aria-hidden="true"></div>
                 <p>Cargando módulo...</p>
@@ -70,21 +77,28 @@
         </div>
     </main>
 
-    <!-- Footer -->
     <footer class="footer" role="contentinfo">
-        <p><?= APP_NAME ?> v<?= APP_VERSION ?> | <?= APP_ENV === 'local' ? 'Desarrollo' : 'Producción' ?></p>
+        <p><?= APP_NAME ?> v<?= APP_VERSION ?> · <?= APP_ENV === 'local' ? 'Desarrollo' : 'Producción' ?></p>
     </footer>
 
-    <!-- JavaScript -->
     <script src="assets/lib/jquery.min.js"></script>
     <script src="assets/lib/jquery.dataTables.min.js"></script>
     <script src="assets/lib/select2.min.js"></script>
-    <script src="assets/js/admin.js?v=2.0.1"></script>
+    <script src="assets/js/admin.js?v=3.0.0"></script>
     <?php if ($module === 'inspector'): ?>
-    <script src="assets/js/inspector.js?v=2.0.1"></script>
+    <script src="assets/js/inspector.js?v=3.0.0"></script>
+    <?php endif; ?>
+    <?php if ($module === 'sql'): ?>
+    <script src="assets/js/sql.js?v=3.0.0"></script>
     <?php endif; ?>
     <script>
-        // Cargar módulo inicial
+        $(document).on('click', '#theme-toggle', function() {
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('admin_theme', next);
+        });
+
         $(document).ready(function() {
             Admin.loadModule('<?= $module ?>');
         });

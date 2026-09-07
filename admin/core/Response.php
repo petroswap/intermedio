@@ -15,15 +15,22 @@ class Response
      */
     public static function success($data = null, string $msg = "Operación exitosa", int $httpCode = 200): void
     {
+        // Limpiar buffer de output para enviar headers correctamente
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        
         http_response_code($httpCode);
         header('Content-Type: application/json; charset=utf-8');
         
-        echo json_encode([
+        $json = json_encode([
             'success' => true,
             'data'    => $data,
             'msg'     => $msg,
             'count'   => self::countData($data),
-        ], JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        
+        echo $json;
         
         exit;
     }
@@ -33,6 +40,11 @@ class Response
      */
     public static function error(string $msg = "Error desconocido", int $httpCode = 400): void
     {
+        // Limpiar buffer de output para enviar headers correctamente
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        
         http_response_code($httpCode);
         header('Content-Type: application/json; charset=utf-8');
         
@@ -41,7 +53,7 @@ class Response
             'data'    => null,
             'msg'     => $msg,
             'count'   => 0,
-        ], JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         
         exit;
     }
@@ -51,6 +63,11 @@ class Response
      */
     public static function paginated($data, int $total, int $page, int $perPage): void
     {
+        // Limpiar buffer de output para enviar headers correctamente
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        
         http_response_code(200);
         header('Content-Type: application/json; charset=utf-8');
         
@@ -65,7 +82,7 @@ class Response
                 'per_page'    => $perPage,
                 'total_pages' => (int) ceil($total / $perPage),
             ],
-        ], JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         
         exit;
     }
@@ -78,7 +95,7 @@ class Response
         http_response_code(200);
         header('Content-Type: application/json; charset=utf-8');
         
-        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         
         exit;
     }
@@ -115,7 +132,7 @@ class Response
             'data'    => null,
             'msg'     => $msg,
             'count'   => 0,
-        ], JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         
         exit;
     }
