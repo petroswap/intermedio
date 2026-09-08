@@ -111,6 +111,7 @@ $dsn = 'firebird:dbname=192.168.4.101/3050:C:\path\to\db.fdb;charset=UTF8';
 - Namespace `SQL.execute()`, `SQL.renderResults()`, etc.
 - Admin.showLoading() / Admin.showAlert() para UI
 - AJAX con jQuery
+- Filtros se envían como array anidado `filters[0][field]`, `filters[0][operator]`, `filters[0][value]` (formato compatible con PHP `$_POST['filters']`)
 
 ### Seguridad
 - Consola SQL: Solo permitidas consultas SELECT (validado server + client)
