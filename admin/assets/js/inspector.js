@@ -459,9 +459,9 @@ const Inspector = {
         }
 
         this.filters.forEach(function(filter, index) {
-            params['filter_field_' + index] = filter.field;
-            params['filter_operator_' + index] = filter.operator;
-            params['filter_value_' + index] = filter.value;
+            params['filters[' + index + '][field]'] = filter.field;
+            params['filters[' + index + '][operator]'] = filter.operator;
+            params['filters[' + index + '][value]'] = filter.value;
         });
 
         return params;
@@ -604,7 +604,14 @@ const Inspector = {
     updateSql: function() {
         var selectedColumns = this.getSelectedColumns();
         var fields = selectedColumns.length > 0 ? selectedColumns.join(', ') : '*';
-        var sql = 'SELECT ' + fields + '\nFROM ' + this.currentTable;
+        var tableName = this.currentTable || '';
+
+        if (!tableName) {
+            $('#sql-generated').text('-- Selecciona una tabla para generar SQL');
+            return;
+        }
+
+        var sql = 'SELECT ' + fields + '\nFROM ' + tableName;
 
         if (this.filters.length > 0) {
             var conditions = this.filters.map(function(f) {
