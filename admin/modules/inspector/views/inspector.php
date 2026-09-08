@@ -167,6 +167,17 @@
         <div class="modal-body">
             <textarea id="sql-input" class="sql-editor" rows="6" placeholder="Escribe tu consulta SQL aquí..."></textarea>
             <p class="sql-editor-hint">Solo se permiten consultas SELECT</p>
+            <div class="sql-suggestions">
+                <p class="sql-suggestions-title">Sugerencias:</p>
+                <div class="sql-suggestions-list">
+                    <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE}">Todos los campos</button>
+                    <button class="sql-suggestion" data-sql="SELECT FIRST 10 * FROM {TABLE}">Primeros 10</button>
+                    <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} ORDER BY 1">Ordenar por 1ra columna</button>
+                    <button class="sql-suggestion" data-sql="SELECT COUNT(*) AS total FROM {TABLE}">Contar registros</button>
+                    <button class="sql-suggestion" data-sql="SELECT FIRST 10 * FROM {TABLE} WHERE ">Con WHERE</button>
+                    <button class="sql-suggestion" data-sql="SELECT DISTINCT  FROM {TABLE}">Valores únicos</button>
+                </div>
+            </div>
         </div>
         <div class="modal-footer">
             <button id="btn-cancel-sql" class="btn btn-secondary">Cancelar</button>

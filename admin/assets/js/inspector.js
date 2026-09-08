@@ -111,6 +111,18 @@ const Inspector = {
             Admin.copyToClipboard($('#sql-generated').text());
         });
         $(document).on('click', '#btn-execute-sql', function() { self.executeSql(); });
+        $(document).on('click', '#btn-close-sql-modal', function() { self.closeModals(); });
+        $(document).on('click', '#btn-cancel-sql', function() { self.closeModals(); });
+        $(document).on('click', '.modal-overlay', function() { self.closeModals(); });
+        $(document).on('click', '.sql-suggestion', function(e) {
+            var sql = $(e.currentTarget).data('sql');
+            var tableName = self.currentTable || 'CLIENTES';
+            $('#sql-input').val(sql.replace(/\{TABLE\}/g, tableName));
+            $('#sql-generated').text($('#sql-input').val());
+        });
+        $(document).on('input', '#sql-input', function() {
+            $('#sql-generated').text($(this).val());
+        });
         $(document).on('click', '.sql-example', function(e) {
             e.preventDefault();
             const sql = $(e.target).closest('.sql-example').data('sql');
@@ -618,7 +630,8 @@ const Inspector = {
 
     openSqlTab: function() {
         var tableName = this.currentTable || 'CLIENTES';
-        $('#sql-input').val('SELECT * FROM ' + tableName);
+        var currentSql = $('#sql-generated').text().trim();
+        $('#sql-input').val(currentSql || 'SELECT * FROM ' + tableName);
         $('#sql-modal').show();
         setTimeout(function() { $('#sql-input').focus(); }, 100);
     },

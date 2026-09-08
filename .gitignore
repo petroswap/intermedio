@@ -4,30 +4,21 @@
 .env
 .env.*
 !.env.example
+!admin/api/.env.example
 */config.php
 */config_local.php
 */config_local_example.php
 
 # ============================================
-# ARCHIVOS DE SISTEMA / TESTING
+# BINARIOS
 # ============================================
-db-test.php
-index.php
-info.php
-php-test.php
-test_firebird2.php
+*.exe
+*.msi
 
 # ============================================
 # OPENCODE (AI assistant config - local only)
 # ============================================
 .opencode/*
-
-# ============================================
-# MÓDULOS LEGACY (no forman parte de v2)
-# ============================================
-ruta_intermedio/*
-code/*
-inspector/*
 
 # ============================================
 # EDITOR BACKUPS

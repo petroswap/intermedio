@@ -36,11 +36,6 @@
                 <span class="theme-icon-dark">🌙</span>
             </button>
             <span class="header-version">v<?= APP_VERSION ?></span>
-            <span class="header-env <?= APP_ENV === 'local' ? 'env-local' : 'env-production' ?>" 
-                  role="status"
-                  aria-label="Entorno: <?= ucfirst(APP_ENV) ?>">
-                <?= ucfirst(APP_ENV) ?>
-            </span>
         </div>
     </header>
 
@@ -78,7 +73,7 @@
     </main>
 
     <footer class="footer" role="contentinfo">
-        <p><?= APP_NAME ?> v<?= APP_VERSION ?> · <?= APP_ENV === 'local' ? 'Desarrollo' : 'Producción' ?></p>
+        <p><?= APP_NAME ?> v<?= APP_VERSION ?></p>
     </footer>
 
     <script src="assets/lib/jquery.min.js"></script>

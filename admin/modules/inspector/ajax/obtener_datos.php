@@ -17,17 +17,30 @@ try {
         exit;
     }
     
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+        Response::error('Nombre de tabla no válido');
+        exit;
+    }
+    
     $db = Database::getInstance(DB_CONFIG);
     $pdo = $db->getConnection();
     
-    $countSql = "SELECT COUNT(*) AS total FROM {$table}";
+    $tableUpper = strtoupper($table);
+    
+    $countSql = "SELECT COUNT(*) AS total FROM \"{$tableUpper}\"";
     $countResult = $pdo->query($countSql)->fetch(PDO::FETCH_ASSOC);
     $total = intval($countResult['TOTAL'] ?? 0);
     
     $fieldSql = '*';
     if (!empty($fields)) {
         $fieldList = array_map('trim', explode(',', $fields));
-        $fieldSql = implode(', ', $fieldList);
+        $safeFields = [];
+        foreach ($fieldList as $f) {
+            if (preg_match('/^[A-Za-z0-9_]+$/', $f)) {
+                $safeFields[] = '"' . strtoupper($f) . '"';
+            }
+        }
+        $fieldSql = !empty($safeFields) ? implode(', ', $safeFields) : '*';
     }
     
     $where = '';
@@ -35,10 +48,12 @@ try {
     if (!empty($filters) && is_array($filters)) {
         $conditions = [];
         foreach ($filters as $f) {
-            $col = $f['field'] ?? '';
+            $col = strtoupper($f['field'] ?? '');
             $op = $f['operator'] ?? 'LIKE';
             $val = $f['value'] ?? '';
             if (empty($col) || empty($val)) continue;
+            
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $col)) continue;
             
             $colEscaped = '"' . str_replace('"', '""', $col) . '"';
             switch (strtoupper($op)) {
@@ -57,7 +72,7 @@ try {
     }
     
     $skip = ($page - 1) * $perPage;
-    $sql = "SELECT FIRST {$perPage} SKIP {$skip} {$fieldSql} FROM {$table}{$where}";
+    $sql = "SELECT FIRST {$perPage} SKIP {$skip} {$fieldSql} FROM \"{$tableUpper}\"{$where}";
     
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -71,5 +86,5 @@ try {
         'total_pages' => ceil($total / $perPage),
     ]);
 } catch (Exception $e) {
-    Response::error($e->getMessage());
+    Response::error('Error al obtener datos');
 }

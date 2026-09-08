@@ -20,7 +20,6 @@ const Admin = {
         this.initToastContainer();
         this.initKeyboardShortcuts();
         this.initAccessibility();
-        console.log('Admin initialized:', this.base_url);
     },
 
     /**
