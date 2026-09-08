@@ -4011,3 +4011,126 @@ a:hover {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.4; }
 }
+
+/* ============================================
+ * RELACIONES / GRAFO
+ * ============================================ */
+.relations-container {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 1rem;
+    height: calc(100vh - 200px);
+    min-height: 400px;
+}
+.relations-graph {
+    background: var(--surface-0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: relative;
+}
+.relations-graph .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+.relations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+}
+.relations-list-section {
+    background: var(--surface-0);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: var(--space-md);
+}
+.relations-list-title {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: var(--space-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.relation-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-xs) 0;
+    border-bottom: 1px solid var(--border-default);
+}
+.relation-item:last-child { border-bottom: none; }
+.relation-arrow {
+    font-size: 14px;
+    color: var(--text-tertiary);
+    min-width: 16px;
+}
+.relation-table {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 600;
+}
+.relation-table:hover { text-decoration: underline; }
+.relation-detail {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-left: auto;
+}
+
+@media (max-width: 768px) {
+    .relations-container {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+    .relations-graph {
+        min-height: 350px;
+    }
+}
+
+/* ============================================
+ * MODAL FAVORITOS
+ * ============================================ */
+.modal-favorites {
+    margin-top: var(--space-md);
+    border-top: 1px solid var(--border-default);
+    padding-top: var(--space-sm);
+}
+.modal-favorites-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-xs);
+}
+.modal-favorites-title {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+.modal-favorites-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
+.modal-favorites-list {
+    max-height: 120px;
+    overflow-y: auto;
+}
+.modal-favorites-list .sql-history-item {
+    padding: var(--space-xs) var(--space-sm);
+}
+.modal-favorites-list .bookmark-delete {
+    margin-left: auto;
+    opacity: 0.5;
+}
+.modal-favorites-list .bookmark-delete:hover {
+    opacity: 1;
+    color: var(--error);
+}

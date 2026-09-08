@@ -60,6 +60,7 @@ const Inspector = {
             this._eventsBound = true;
         }
         this.loadTables();
+        this.loadFavorites();
         this.checkUrlParams();
     },
 
@@ -90,6 +91,9 @@ const Inspector = {
         $(document).on('click', '#btn-show-last-10', function() { self.loadLastRecords(10); });
         $(document).on('click', '#btn-show-all', function() { self.loadAllRecords(); });
         $(document).on('click', '#btn-sql', function() { self.openSqlTab(); });
+        $(document).on('click', '#btn-relaciones', function() { self.openRelationships(); });
+        $(document).on('click', '#btn-back-from-relations', function(e) { e.preventDefault(); self.showTablesView(); });
+        $(document).on('click', '#btn-rel-back-data', function() { self.showTableView(); self.loadTableInfo(); });
 
         // Columnas - select all/none
         $(document).on('click', '#btn-select-all-cols', function() {
@@ -138,6 +142,27 @@ const Inspector = {
         // Export
         $(document).on('click', '#btn-export-csv', function() { self.exportCSV(); });
         $(document).on('click', '#btn-export-json', function() { self.exportJSON(); });
+
+        // Favoritos
+        $(document).on('click', '#btn-save-bookmark', function() { self.saveFavorite(); });
+        $(document).on('click', '#btn-clear-bookmarks', function() { self.clearFavorites(); });
+        $(document).on('click', '.sql-bookmark-item', function(e) {
+            var sql = $(e.currentTarget).data('sql');
+            if (sql) {
+                if (self._cmEditor) {
+                    self._cmEditor.setValue(sql);
+                } else {
+                    $('#sql-input').val(sql);
+                }
+            }
+        });
+        $(document).on('click', '#btn-export-favorites', function() { self.exportFavorites(); });
+        $(document).on('click', '#btn-import-favorites', function() { $('#import-favorites-input').click(); });
+        $(document).on('change', '#import-favorites-input', function(e) {
+            var file = e.target.files[0];
+            if (file) self.importFavorites(file);
+            $(this).val('');
+        });
 
         // Reset SQL
         $(document).on('click', '#btn-reset-sql', function() {
@@ -928,6 +953,329 @@ const Inspector = {
         .always(function() {
             $btn.prop('disabled', false).removeClass('loading');
         });
+    },
+
+    // ============================================
+    // FAVORITOS (server-side)
+    // ============================================
+
+    loadFavorites: function() {
+        var self = this;
+        Admin.get('modules/inspector/ajax/favorites.php', {})
+        .then(function(response) {
+            self.favorites = response.data || [];
+            self.renderFavorites();
+        })
+        .catch(function(error) {
+            Admin.logError('loadFavorites', error);
+            self.favorites = [];
+            self.renderFavorites();
+        });
+    },
+
+    renderFavorites: function() {
+        var $list = $('#sql-bookmarks').empty();
+        var $modalList = $('#modal-favorites-list').empty();
+        if (!this.favorites || this.favorites.length === 0) {
+            var empty = '<div class="empty-state" style="padding: 0.5rem;"><p class="empty-state-description">Sin consultas guardadas</p></div>';
+            $list.html(empty);
+            $modalList.html(empty);
+            return;
+        }
+        var html = '';
+        this.favorites.forEach(function(fav) {
+            var truncated = fav.sql.length > 60 ? fav.sql.substring(0, 60) + '...' : fav.sql;
+            html += '<div class="sql-history-item sql-bookmark-item" data-sql="' + fav.sql.replace(/"/g, '&quot;') + '">' +
+                '<span class="sql-history-icon">⭐</span>' +
+                '<span class="sql-history-sql" title="' + fav.name + '">' + fav.name + ' — ' + truncated + '</span>' +
+            '</div>';
+        });
+        $list.html(html);
+        $modalList.html(html);
+    },
+
+    saveFavorite: function() {
+        var self = this;
+        var sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-input').val().trim();
+        if (!sql) {
+            Admin.showAlert('No hay consulta para guardar', 'warning');
+            return;
+        }
+        var name = prompt('Nombre para esta consulta:', 'Mi consulta');
+        if (!name) return;
+
+        Admin.post('modules/inspector/ajax/favorites.php', {
+            action: 'add',
+            name: name,
+            sql: sql,
+            table: self.currentTable || ''
+        })
+        .then(function() {
+            self.loadFavorites();
+            Admin.toastSuccess('Consulta guardada como favorita');
+        })
+        .catch(function(error) {
+            Admin.logError('saveFavorite', error);
+        });
+    },
+
+    clearFavorites: function() {
+        if (!confirm('¿Eliminar todos los favoritos?')) return;
+        var self = this;
+        var exportData = { version: 1, favorites: this.favorites || [] };
+        var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'fuelops_favoritos_backup.json';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        Admin.post('modules/inspector/ajax/favorites.php', {
+            action: 'import',
+            favorites: JSON.stringify([])
+        })
+        .then(function() {
+            self.loadFavorites();
+            Admin.toastSuccess('Favoritos eliminados. Backup descargado.');
+        })
+        .catch(function(error) {
+            Admin.logError('clearFavorites', error);
+        });
+    },
+
+    exportFavorites: function() {
+        window.location.href = 'modules/inspector/ajax/favorites.php?action=export';
+    },
+
+    importFavorites: function(file) {
+        var self = this;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var imported = JSON.parse(e.target.result);
+                var favs = imported.favorites || (Array.isArray(imported) ? imported : []);
+                Admin.post('modules/inspector/ajax/favorites.php', {
+                    action: 'import',
+                    favorites: JSON.stringify(favs)
+                })
+                .then(function(response) {
+                    var d = response.data || {};
+                    self.loadFavorites();
+                    Admin.toastSuccess('Importados: ' + (d.added || 0) + ' nuevos, ' + (d.updated || 0) + ' actualizados');
+                })
+                .catch(function(error) {
+                    Admin.logError('importFavorites', error);
+                });
+            } catch (err) {
+                Admin.showAlert('Archivo JSON no válido', 'danger');
+            }
+        };
+        reader.readAsText(file);
+    },
+
+    // ============================================
+    // RELACIONES ( grafo )
+    // ============================================
+
+    _graphNetwork: null,
+
+    openRelationships: function() {
+        if (!this.currentTable) return;
+        this.showRelationshipsView();
+        this.loadRelationships(this.currentTable);
+    },
+
+    showRelationshipsView: function() {
+        $('#view-table-data').hide();
+        $('#view-tables').hide();
+        $('#view-relationships').show();
+    },
+
+    loadRelationships: function(tableName) {
+        var self = this;
+        $('#relations-table-name').text('Relaciones: ' + tableName);
+        $('#relations-parents').html('<div class="loading"><div class="spinner"></div></div>');
+        $('#relations-children').html('<div class="loading"><div class="spinner"></div></div>');
+        $('#relations-graph').html('<div class="loading"><div class="spinner"></div><p>Cargando relaciones...</p></div>');
+
+        Admin.get('modules/inspector/ajax/relaciones.php', { table: tableName })
+        .then(function(response) {
+            var d = response.data || {};
+            self.renderRelationsList(d);
+            self.renderGraph(tableName, d);
+        })
+        .catch(function(error) {
+            Admin.logError('loadRelationships', error);
+            $('#relations-graph').html('<div class="empty-state"><p class="empty-state-description">Error al cargar relaciones</p></div>');
+            $('#relations-parents').html('');
+            $('#relations-children').html('');
+        });
+    },
+
+    renderRelationsList: function(data) {
+        var $parents = $('#relations-parents').empty();
+        var $children = $('#relations-children').empty();
+        var totalRels = (data.padres || []).length + (data.hijos || []).length;
+        $('#relations-info').text(totalRels + ' relaciones');
+
+        if ((!data.padres || data.padres.length === 0) && (!data.hijos || data.hijos.length === 0)) {
+            $parents.html('<p class="empty-state-description">Sin relaciones definidas (FK)</p>');
+            return;
+        }
+
+        if (data.padres && data.padres.length > 0) {
+            var html = '';
+            data.padres.forEach(function(r) {
+                html += '<div class="relation-item">' +
+                    '<span class="relation-arrow">←</span>' +
+                    '<span class="relation-table" data-table="' + r.tabla_padre + '">' + r.tabla_padre + '</span>' +
+                    '<span class="relation-detail">' + r.columna_pk + ' → ' + r.columna_fk + '</span>' +
+                '</div>';
+            });
+            $parents.html(html);
+        } else {
+            $parents.html('<p class="empty-state-description">Sin tablas padre</p>');
+        }
+
+        if (data.hijos && data.hijos.length > 0) {
+            var html = '';
+            data.hijos.forEach(function(r) {
+                html += '<div class="relation-item">' +
+                    '<span class="relation-arrow">→</span>' +
+                    '<span class="relation-table" data-table="' + r.tabla_hija + '">' + r.tabla_hija + '</span>' +
+                    '<span class="relation-detail">' + r.columna_fk + ' → ' + r.columna_pk + '</span>' +
+                '</div>';
+            });
+            $children.html(html);
+        } else {
+            $children.html('<p class="empty-state-description">Sin tablas hijas</p>');
+        }
+
+        var self = this;
+        $(document).off('click', '.relation-table').on('click', '.relation-table', function() {
+            var table = $(this).data('table');
+            if (table) {
+                self.currentTable = table;
+                self.showTableView();
+                self.loadTableInfo();
+            }
+        });
+    },
+
+    renderGraph: function(centerTable, data) {
+        var $container = $('#relations-graph').empty();
+        if (typeof vis === 'undefined') {
+            $container.html('<div class="empty-state"><p class="empty-state-description">vis-network no cargado</p></div>');
+            return;
+        }
+
+        var nodes = [];
+        var edges = [];
+        var usedTables = {};
+
+        nodes.push({
+            id: centerTable,
+            label: centerTable,
+            color: { background: '#4f46e5', border: '#3730a3', highlight: { background: '#6366f1', border: '#4338ca' } },
+            font: { color: '#ffffff', face: 'monospace', bold: true },
+            shape: 'box',
+            margin: 10
+        });
+        usedTables[centerTable] = true;
+
+        var self = this;
+        (data.padres || []).forEach(function(r) {
+            var id = r.tabla_padre;
+            if (!usedTables[id]) {
+                nodes.push({
+                    id: id,
+                    label: id,
+                    color: { background: '#059669', border: '#047857' },
+                    font: { color: '#ffffff', face: 'monospace' },
+                    shape: 'box',
+                    margin: 8
+                });
+                usedTables[id] = true;
+            }
+            edges.push({
+                from: centerTable,
+                to: id,
+                label: r.columna_pk + ' → ' + r.columna_fk,
+                font: { size: 10, color: '#9ca3af', face: 'monospace' },
+                color: { color: '#6b7280', highlight: '#4f46e5' },
+                arrows: 'to',
+                smooth: { type: 'curvedCW', roundness: 0.2 }
+            });
+        });
+
+        (data.hijos || []).forEach(function(r) {
+            var id = r.tabla_hija;
+            if (!usedTables[id]) {
+                nodes.push({
+                    id: id,
+                    label: id,
+                    color: { background: '#dc2626', border: '#b91c1c' },
+                    font: { color: '#ffffff', face: 'monospace' },
+                    shape: 'box',
+                    margin: 8
+                });
+                usedTables[id] = true;
+            }
+            edges.push({
+                from: id,
+                to: centerTable,
+                label: r.columna_fk + ' → ' + r.columna_pk,
+                font: { size: 10, color: '#9ca3af', face: 'monospace' },
+                color: { color: '#6b7280', highlight: '#dc2626' },
+                arrows: 'to',
+                smooth: { type: 'curvedCW', roundness: -0.2 }
+            });
+        });
+
+        if (nodes.length <= 1) {
+            $container.html('<div class="empty-state"><div class="empty-state-icon">🔗</div><p class="empty-state-description">Sin relaciones FK para esta tabla</p></div>');
+            return;
+        }
+
+        var networkDiv = document.createElement('div');
+        networkDiv.style.width = '100%';
+        networkDiv.style.height = '100%';
+        $container.append(networkDiv);
+
+        var network = new vis.Network(networkDiv, { nodes: nodes, edges: edges }, {
+            physics: {
+                barnesHut: {
+                    gravitationalConstant: -3000,
+                    centralGravity: 0.3,
+                    springLength: 150,
+                    springConstant: 0.02
+                },
+                stabilization: { iterations: 150 }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200,
+                navigationButtons: true,
+                keyboard: { enabled: true }
+            },
+            edges: {
+                smooth: true
+            }
+        });
+
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                var clickedId = params.nodes[0];
+                if (clickedId !== centerTable) {
+                    self.currentTable = clickedId;
+                    self.showTableView();
+                    self.loadTableInfo();
+                }
+            }
+        });
+
+        this._graphNetwork = network;
     }
 };
 

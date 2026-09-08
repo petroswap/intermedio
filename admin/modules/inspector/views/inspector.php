@@ -64,6 +64,10 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     SQL
                 </button>
+                <button id="btn-relaciones" class="btn btn-secondary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    Relaciones
+                </button>
             </div>
         </div>
 
@@ -171,6 +175,41 @@
             </main>
         </div>
     </div>
+
+    <!-- Vista: Relaciones -->
+    <div id="view-relationships" style="display:none;">
+        <div class="table-data-header">
+            <div class="table-data-header-left">
+                <button id="btn-back-from-relations" class="btn btn-back" title="Volver a tablas">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                    Tablas
+                </button>
+                <div class="table-data-title-group">
+                    <h2 id="relations-table-name" class="table-data-title">Relaciones</h2>
+                    <span id="relations-info" class="badge badge-primary">0 relaciones</span>
+                </div>
+            </div>
+            <div class="table-data-header-right">
+                <button id="btn-rel-back-data" class="btn btn-secondary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Ver datos
+                </button>
+            </div>
+        </div>
+        <div class="relations-container">
+            <div id="relations-graph" class="relations-graph"></div>
+            <div id="relations-list" class="relations-list">
+                <div class="relations-list-section">
+                    <h4 class="relations-list-title">Referencia a (padres)</h4>
+                    <div id="relations-parents" class="relations-list-items"></div>
+                </div>
+                <div class="relations-list-section">
+                    <h4 class="relations-list-title">Referenciada por (hijos)</h4>
+                    <div id="relations-children" class="relations-list-items"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- SQL Modal -->
@@ -211,6 +250,21 @@
                         <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} WHERE {COL} IS NOT NULL">No nulos</button>
                         <button class="sql-suggestion" data-sql="SELECT FIRST 100 * FROM {TABLE} ROWS 1 TO 100">ROWS 1 a 100</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Favoritos en modal -->
+            <div class="modal-favorites">
+                <div class="modal-favorites-header">
+                    <span class="modal-favorites-title">⭐ Favoritos</span>
+                    <div class="modal-favorites-actions">
+                        <input type="file" id="import-favorites-input" accept=".json" style="display:none;">
+                        <button id="btn-import-favorites" class="btn btn-xs btn-ghost" title="Importar favoritos desde JSON">Importar</button>
+                        <button id="btn-export-favorites" class="btn btn-xs btn-ghost" title="Exportar favoritos a JSON">Exportar</button>
+                    </div>
+                </div>
+                <div id="modal-favorites-list" class="modal-favorites-list">
+                    <div class="empty-state" style="padding: 0.5rem;"><p class="empty-state-description">Sin consultas guardadas</p></div>
                 </div>
             </div>
         </div>

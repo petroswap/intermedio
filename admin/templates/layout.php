@@ -86,6 +86,7 @@
     <script src="assets/lib/select2.min.js"></script>
     <script src="assets/lib/codemirror.min.js"></script>
     <script src="assets/lib/codemirror-sql.min.js"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="assets/js/admin.js?v=3.0.0"></script>
     <?php if ($module === 'inspector'): ?>
     <script src="assets/js/inspector.js?v=3.0.0"></script>

@@ -34,7 +34,9 @@ intermedio/
 │   │   │   │   ├── obtener_datos.php      # Datos paginados + filtros + BETWEEN
 │   │   │   │   ├── obtener_ultimos.php    # Últimos N registros
 │   │   │   │   ├── ejecutar_sql.php       # SQL libre (SELECT/WITH)
-│   │   │   │   └── contar_tablas.php      # Conteo batch de registros
+│   │   │   │   ├── contar_tablas.php      # Conteo batch de registros
+│   │   │   │   ├── favorites.php          # CRUD favoritos + import/export JSON
+│   │   │   │   └── relaciones.php         # FK relationships (grafo)
 │   │   │   └── views/
 │   │   │       └── inspector.php          # Vista principal
 │   │   └── sql/              # Módulo Consola SQL
@@ -43,6 +45,8 @@ intermedio/
 │   ├── templates/layout.php  # Layout principal (nav, head, scripts, CodeMirror)
 │   ├── config.php            # Carga .env y defines globales
 │   └── index.php             # Router principal de módulos
+├── admin/data/               # Datos de usuario (no versionado)
+│   └── favorites.json        # Favoritos del usuario
 ├── .env                      # Variables de entorno (NO subir al repo)
 └── .gitignore
 ```
@@ -232,3 +236,16 @@ $dsn = 'firebird:dbname=192.168.4.101/3050:C:\path\to\db.fdb;charset=UTF8';
 - Helpers reutilizables: `Admin.formatNumber()`, `Admin.logError()`
 - Validación server-side: limit capped, max tablas
 - Error handling: `Admin.logError()` con localStorage
+
+### P4 — Favoritos + Relaciones (completado)
+- **Favoritos server-side**: `favorites.php` con CRUD + import/export JSON
+- Almacenamiento en `admin/data/favorites.json` (archivo plano, no BD)
+- Botones Exportar/Importar en modal SQL
+- Fusión inteligente al importar (por ID, sin borrar existentes)
+- Backup automático antes de limpiar
+- **Grafo de relaciones**: `relaciones.php` consulta FK a Firebird
+- Vista `#view-relationships` con vis-network (CDN)
+- Grafo forzado (force-directed) con nodos de colores
+- Click en nodo → navega a esa tabla
+- Lista lateral con tablas padre/hija y columnas FK
+- Botón "Relaciones" en cabecera de tabla

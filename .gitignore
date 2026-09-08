@@ -30,6 +30,7 @@
 
 old/*
 admin/old/*
+admin/data/*
 code/*
 inspector/*
 ruta_intermedio/*
