@@ -24,11 +24,6 @@ $allModules = [
         'description' => 'Ejecuta consultas SQL personalizadas',
         'icon' => '💻',
     ],
-    'api' => [
-        'name' => 'API Endpoints',
-        'description' => 'Documentación de endpoints disponibles',
-        'icon' => '⚡',
-    ],
 ];
 
 // Detect requested module

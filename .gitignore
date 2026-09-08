@@ -28,7 +28,7 @@
 *.swo
 *~
 
-
+admin/old/*
 code/*
 inspector/*
 ruta_intermedio/*
