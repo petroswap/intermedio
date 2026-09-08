@@ -576,7 +576,6 @@ const Inspector = {
     updateCount: function(count) {
         $('#results-count').text(count.toLocaleString('es-ES'));
         $('#current-table-count').text(count.toLocaleString('es-ES') + ' registros');
-        $('#show-all-count').text(count.toLocaleString('es-ES'));
     },
 
     updateRecordsShownInfo: function(shown, total) {
