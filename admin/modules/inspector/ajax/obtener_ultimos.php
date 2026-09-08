@@ -7,7 +7,7 @@ require_once __DIR__ . '/../../../core/Response.php';
 
 try {
     $table = $_POST['table'] ?? '';
-    $limit = intval($_POST['limit'] ?? 10);
+    $limit = max(1, min(1000, intval($_POST['limit'] ?? 10)));
     $fields = $_POST['fields'] ?? '';
     
     if (empty($table)) {

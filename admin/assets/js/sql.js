@@ -1,10 +1,28 @@
 const SqlModule = {
     history: [],
     _resultsDt: null,
+    _cmEditor: null,
 
     init: function() {
         this.bindEvents();
         this.loadHistory();
+        this.loadBookmarks();
+        this.initCodeMirror();
+    },
+
+    initCodeMirror: function() {
+        var textarea = document.getElementById('sql-editor');
+        if (typeof CodeMirror !== 'undefined' && textarea && !this._cmEditor) {
+            this._cmEditor = CodeMirror.fromTextArea(textarea, {
+                mode: 'text/x-sql',
+                theme: 'monokai',
+                lineNumbers: true,
+                indentWithTabs: true,
+                smartIndent: true,
+                autofocus: true,
+                lineWrapping: true
+            });
+        }
     },
 
     bindEvents: function() {
@@ -12,9 +30,30 @@ const SqlModule = {
 
         $(document).on('click.sqlmod', '#btn-sql-execute', () => this.execute());
         $(document).on('click.sqlmod', '#btn-sql-clear', () => this.clearEditor());
+        $(document).on('click.sqlmod', '#btn-sql-export-csv', () => this.exportCSV());
+        $(document).on('click.sqlmod', '#btn-sql-export-json', () => this.exportJSON());
+        $(document).on('click.sqlmod', '#btn-save-bookmark', () => this.saveBookmark());
+        $(document).on('click.sqlmod', '#btn-clear-bookmarks', () => this.clearBookmarks());
+        $(document).on('click.sqlmod', '#btn-clear-history', () => this.clearHistory());
+        $(document).on('click.sqlmod', '.sql-bookmark-item', (e) => {
+            const sql = $(e.currentTarget).data('sql');
+            if (sql) {
+                if (this._cmEditor) {
+                    this._cmEditor.setValue(sql);
+                } else {
+                    $('#sql-editor').val(sql);
+                }
+            }
+        });
         $(document).on('click.sqlmod', '.sql-history-item', (e) => {
             const sql = $(e.currentTarget).data('sql');
-            if (sql) { $('#sql-editor').val(sql); }
+            if (sql) {
+                if (this._cmEditor) {
+                    this._cmEditor.setValue(sql);
+                } else {
+                    $('#sql-editor').val(sql);
+                }
+            }
         });
 
         // SQL Examples toggle
@@ -30,7 +69,12 @@ const SqlModule = {
         $(document).on('click.sqlmod', '.sql-example-item', (e) => {
             const sql = $(e.currentTarget).data('sql');
             if (sql) {
-                $('#sql-editor').val(sql).focus();
+                if (this._cmEditor) {
+                    this._cmEditor.setValue(sql);
+                    this._cmEditor.focus();
+                } else {
+                    $('#sql-editor').val(sql).focus();
+                }
             }
         });
 
@@ -47,7 +91,7 @@ const SqlModule = {
     },
 
     execute: function() {
-        const sql = $('#sql-editor').val().trim();
+        const sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-editor').val().trim();
         if (!sql) {
             Admin.showAlert('Escribe una consulta SQL', 'warning');
             return;
@@ -101,12 +145,15 @@ const SqlModule = {
             this._resultsDt = null;
         }
 
+        this._lastData = data;
         const html = Admin.createTable(data);
         $container.html(html);
 
         $('#sql-results-count').text(count || data.length);
         $('#sql-results-info').show();
-        $('#sql-execution-time').text(`${elapsed}ms · ${(count || data.length).toLocaleString('es-ES')} registros`);
+        var totalReg = Admin.formatNumber(count || data.length);
+        $('#sql-execution-time').text(elapsed + 'ms · ' + totalReg + ' registros');
+        $('#sql-export-buttons').show();
 
         if (data.length > 10) {
             this._resultsDt = $container.find('.data-table').DataTable({
@@ -153,6 +200,13 @@ const SqlModule = {
         this.renderHistory();
     },
 
+    clearHistory: function() {
+        this.history = [];
+        this.renderHistory();
+        try { localStorage.removeItem('sql_history'); } catch(e) {}
+        Admin.toastSuccess('Historial eliminado');
+    },
+
     renderHistory: function() {
         const $list = $('#sql-history');
         if (this.history.length === 0) {
@@ -173,6 +227,114 @@ const SqlModule = {
     },
 
     clearEditor: function() {
-        $('#sql-editor').val('').focus();
+        if (this._cmEditor) {
+            this._cmEditor.setValue('');
+            this._cmEditor.focus();
+        } else {
+            $('#sql-editor').val('').focus();
+        }
+    },
+
+    // ============================================
+    // BOOKMARKS
+    // ============================================
+
+    bookmarks: [],
+
+    loadBookmarks: function() {
+        try {
+            const saved = localStorage.getItem('sql_bookmarks');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    this.bookmarks = parsed.filter(item => item && typeof item.sql === 'string');
+                }
+            }
+        } catch(e) {
+            this.bookmarks = [];
+        }
+        this.renderBookmarks();
+    },
+
+    saveBookmark: function() {
+        const sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-editor').val().trim();
+        if (!sql) {
+            Admin.showAlert('No hay consulta para guardar', 'warning');
+            return;
+        }
+
+        const name = prompt('Nombre para esta consulta:', 'Mi consulta');
+        if (!name) return;
+
+        this.bookmarks.unshift({ name: name, sql: sql });
+        if (this.bookmarks.length > 20) this.bookmarks.pop();
+        this.renderBookmarks();
+        try { localStorage.setItem('sql_bookmarks', JSON.stringify(this.bookmarks)); } catch(e) {}
+        Admin.toastSuccess('Consulta guardada como favorita');
+    },
+
+    clearBookmarks: function() {
+        this.bookmarks = [];
+        this.renderBookmarks();
+        try { localStorage.removeItem('sql_bookmarks'); } catch(e) {}
+        Admin.toastSuccess('Favoritos eliminados');
+    },
+
+    renderBookmarks: function() {
+        const $list = $('#sql-bookmarks');
+        if (this.bookmarks.length === 0) {
+            $list.html('<div class="empty-state" style="padding: 1rem;"><p class="empty-state-description">Sin consultas guardadas</p></div>');
+            return;
+        }
+        let html = '';
+        this.bookmarks.forEach(item => {
+            const truncated = item.sql.length > 60 ? item.sql.substring(0, 60) + '...' : item.sql;
+            html += `<div class="sql-history-item sql-bookmark-item" data-sql="${item.sql.replace(/"/g, '&quot;')}">
+                <span class="sql-history-icon">⭐</span>
+                <span class="sql-history-sql" title="${item.name}">${item.name} — ${truncated}</span>
+            </div>`;
+        });
+        $list.html(html);
+    },
+
+    exportCSV: function() {
+        if (!this._lastData || this._lastData.length === 0) {
+            Admin.showAlert('No hay datos para exportar', 'warning');
+            return;
+        }
+        var headers = Object.keys(this._lastData[0]);
+        var csvRows = [];
+        csvRows.push(headers.join(','));
+        this._lastData.forEach(function(row) {
+            var values = headers.map(function(h) {
+                var val = row[h] ?? '';
+                val = String(val).replace(/"/g, '""');
+                return '"' + val + '"';
+            });
+            csvRows.push(values.join(','));
+        });
+        var blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'consulta_sql.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        Admin.toastSuccess('CSV exportado');
+    },
+
+    exportJSON: function() {
+        if (!this._lastData || this._lastData.length === 0) {
+            Admin.showAlert('No hay datos para exportar', 'warning');
+            return;
+        }
+        var blob = new Blob([JSON.stringify(this._lastData, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'consulta_sql.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        Admin.toastSuccess('JSON exportado');
     }
 };

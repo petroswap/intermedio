@@ -14,6 +14,11 @@ try {
     
     $db = Database::getInstance(DB_CONFIG);
     $columns = $db->getColumns($table);
+    $pk = $db->getPrimaryKey($table);
+    
+    foreach ($columns as &$col) {
+        $col['IS_PK'] = (strtoupper($col['COLUMNA']) === strtoupper($pk)) ? 1 : 0;
+    }
     
     Response::success($columns);
 } catch (Exception $e) {

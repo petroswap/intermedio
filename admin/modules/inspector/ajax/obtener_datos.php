@@ -63,6 +63,14 @@ try {
                 case '<': $conditions[] = "{$colEscaped} < ?"; $params[] = $val; break;
                 case '>=': $conditions[] = "{$colEscaped} >= ?"; $params[] = $val; break;
                 case '<=': $conditions[] = "{$colEscaped} <= ?"; $params[] = $val; break;
+                case 'BETWEEN':
+                    $parts = array_map('trim', explode(',', $val));
+                    if (count($parts) === 2) {
+                        $conditions[] = "{$colEscaped} BETWEEN ? AND ?";
+                        $params[] = $parts[0];
+                        $params[] = $parts[1];
+                    }
+                    break;
                 default: $conditions[] = "{$colEscaped} LIKE ?"; $params[] = "%{$val}%";
             }
         }

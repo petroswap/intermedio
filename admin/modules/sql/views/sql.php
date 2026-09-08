@@ -17,9 +17,9 @@
             <div class="sql-examples-section">
                 <button class="sql-examples-toggle" id="btn-toggle-examples">
                     📖 Ejemplos SQL Firebird
-                    <span class="sql-examples-arrow">▼</span>
+                    <span class="sql-examples-arrow">▶</span>
                 </button>
-                <div class="sql-examples-panel" id="sql-examples-panel">
+                <div class="sql-examples-panel" id="sql-examples-panel" style="display:none;">
 
                     <div class="sql-example-group">
                         <div class="sql-example-group-title">🔹 Básico</div>
@@ -175,11 +175,25 @@
             <div class="sql-editor-footer">
                 <span class="sql-shortcut"><kbd>Ctrl+Enter</kbd> Ejecutar</span>
                 <span class="sql-shortcut"><kbd>Ctrl+L</kbd> Limpiar</span>
+                <button id="btn-save-bookmark" class="btn btn-xs btn-ghost" title="Guardar como favorito">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                    Guardar
+                </button>
+            </div>
+
+            <!-- Favoritos -->
+            <div class="sql-history-section" id="sql-bookmarks-section">
+                <h4 class="section-title">⭐ Favoritos <button id="btn-clear-bookmarks" class="btn btn-xs btn-ghost">Limpiar</button></h4>
+                <div id="sql-bookmarks" class="sql-history-list">
+                    <div class="empty-state" style="padding: 1rem;">
+                        <p class="empty-state-description">Sin consultas guardadas</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Historial -->
             <div class="sql-history-section">
-                <h4 class="section-title">📜 Historial</h4>
+                <h4 class="section-title">📜 Historial <button id="btn-clear-history" class="btn btn-xs btn-ghost">Limpiar</button></h4>
                 <div id="sql-history" class="sql-history-list">
                     <div class="empty-state" style="padding: 1rem;">
                         <p class="empty-state-description">Sin consultas recientes</p>
@@ -197,6 +211,16 @@
                 </h3>
                 <div id="sql-results-info" class="sql-results-info" style="display: none;">
                     <span id="sql-execution-time"></span>
+                    <div id="sql-export-buttons" class="export-buttons" style="display:none;">
+                        <button id="btn-sql-export-csv" class="btn btn-xs btn-ghost" title="Exportar a CSV">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            CSV
+                        </button>
+                        <button id="btn-sql-export-json" class="btn btn-xs btn-ghost" title="Exportar a JSON">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            JSON
+                        </button>
+                    </div>
                 </div>
             </div>
             <div id="sql-results-container" class="sql-results-container">

@@ -53,12 +53,22 @@ const Admin = {
      * Inicializar accesibilidad
      */
     initAccessibility: function() {
-        // Agregar skip link
         const skipLink = document.createElement('a');
         skipLink.href = '#main-content';
         skipLink.className = 'skip-link';
         skipLink.textContent = 'Saltar al contenido principal';
         document.body.insertBefore(skipLink, document.body.firstChild);
+
+        $(document).on('click', '#nav-toggle', function() {
+            const $tabs = $('.nav-tabs');
+            const expanded = $(this).attr('aria-expanded') === 'true';
+            $tabs.toggleClass('open');
+            $(this).attr('aria-expanded', !expanded);
+        });
+        $(document).on('click', '.nav-tab a', function() {
+            $('.nav-tabs').removeClass('open');
+            $('#nav-toggle').attr('aria-expanded', 'false');
+        });
     },
 
     /**
@@ -506,21 +516,41 @@ const Admin = {
     /**
      * Copiar al portapapeles
      */
-    copyToClipboard: function(text) {
-        navigator.clipboard.writeText(text).then(() => {
+    copyToClipboard: async function(text) {
+        try {
+            await navigator.clipboard.writeText(text);
             this.toastSuccess('Copiado al portapapeles');
-        }).catch(() => {
-            // Fallback para navegadores antiguos
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
+        } catch (e) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
             document.execCommand('copy');
-            document.body.removeChild(textarea);
+            document.body.removeChild(ta);
             this.toastSuccess('Copiado al portapapeles');
-        });
+        }
+    },
+
+    /**
+     * Log de errores (consola + opcionalmente envío a servidor)
+     */
+    logError: function(context, error, extra) {
+        var entry = {
+            time: new Date().toISOString(),
+            context: context,
+            error: error && error.message ? error.message : String(error),
+            stack: error && error.stack ? error.stack : null,
+            extra: extra || null
+        };
+        console.error('[FuelOps]', entry.context, entry.error, entry.extra || '');
+        try {
+            var logs = JSON.parse(localStorage.getItem('fuelops_error_logs') || '[]');
+            logs.push(entry);
+            if (logs.length > 50) logs = logs.slice(-50);
+            localStorage.setItem('fuelops_error_logs', JSON.stringify(logs));
+        } catch (e) {}
     },
 
     /**

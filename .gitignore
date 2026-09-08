@@ -28,6 +28,7 @@
 *.swo
 *~
 
+old/*
 admin/old/*
 code/*
 inspector/*

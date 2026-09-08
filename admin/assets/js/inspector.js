@@ -29,6 +29,7 @@ const Inspector = {
     _tablesDt: null,
     _resultsDt: null,
     _loadingTimeout: null,
+    _initialSql: null,
 
     /**
      * Show full-screen loading overlay (with delay for fast operations)
@@ -116,17 +117,46 @@ const Inspector = {
         $(document).on('click', '.modal-overlay', function() { self.closeModals(); });
         $(document).on('click', '.sql-suggestion', function(e) {
             var sql = $(e.currentTarget).data('sql');
-            var tableName = self.currentTable || 'CLIENTES';
-            $('#sql-input').val(sql.replace(/\{TABLE\}/g, tableName));
-            $('#sql-generated').text($('#sql-input').val());
+            var tableName = self.currentTable || 'MITABLA';
+            var col = (self.columns.length > 0) ? (self.columns[0].COLUMNA || 'COLUMNA1') : 'COLUMNA1';
+            var finalSql = sql.replace(/\{TABLE\}/g, tableName).replace(/\{COL\}/g, col);
+            if (self._cmEditor) {
+                self._cmEditor.setValue(finalSql);
+            } else {
+                $('#sql-input').val(finalSql);
+            }
         });
         $(document).on('input', '#sql-input', function() {
-            $('#sql-generated').text($(this).val());
+            // Solo actualiza el editor, sql-generated se actualiza al ejecutar
         });
         $(document).on('click', '.sql-example', function(e) {
             e.preventDefault();
             const sql = $(e.target).closest('.sql-example').data('sql');
             if (sql) { $('#sql-input').val(sql); self.executeSql(); }
+        });
+
+        // Export
+        $(document).on('click', '#btn-export-csv', function() { self.exportCSV(); });
+        $(document).on('click', '#btn-export-json', function() { self.exportJSON(); });
+
+        // Reset SQL
+        $(document).on('click', '#btn-reset-sql', function() {
+            if (self._initialSql) {
+                $('#sql-generated').text(self._initialSql);
+                if (self._cmEditor) {
+                    self._cmEditor.setValue(self._initialSql);
+                } else {
+                    $('#sql-input').val(self._initialSql);
+                }
+            }
+            $('#btn-reset-sql').hide();
+            self.filters = [];
+            self.showingAll = false;
+            self.currentPage = 1;
+            $('#filter-field').val('');
+            $('#filter-value').val('');
+            $('#active-filters').empty();
+            self.loadLastRecords(10);
         });
 
         // Test conexión
@@ -164,7 +194,7 @@ const Inspector = {
             }
         })
         .catch(function(error) {
-            console.error('Error cargando tablas:', error);
+            Admin.logError('loadTables', error);
             tbody.html('<tr><td colspan="2" class="text-center" style="padding:2rem;color:var(--error)">Error al conectar con la BD</td></tr>');
             Admin.showAlert('No se pudo conectar a la base de datos Firebird.', 'danger', 'Error de conexión');
         });
@@ -176,12 +206,14 @@ const Inspector = {
 
         tables.forEach(function(table) {
             const name = (table.TABLA || table.tabla || '').trim();
+            var cachedCount = self.getTableCount(name);
 
             tbody.append(
                 '<tr data-table="' + name + '" class="clickable-row">' +
                     '<td>' +
                         '<div class="table-name-cell">' +
                             '<span class="table-name">' + name + '</span>' +
+                            '<span class="table-count-badge">' + (cachedCount !== null ? Admin.formatNumber(cachedCount) : '...') + '</span>' +
                         '</div>' +
                     '</td>' +
                     '<td>' +
@@ -192,6 +224,50 @@ const Inspector = {
         });
 
         this.initTablesDataTable();
+        this.loadTableCounts(tables);
+    },
+
+    getTableCount: function(tableName) {
+        try {
+            var cache = JSON.parse(localStorage.getItem('table_counts') || '{}');
+            var entry = cache[tableName];
+            if (entry && Date.now() - entry.time < 300000) {
+                return entry.count;
+            }
+        } catch(e) {}
+        return null;
+    },
+
+    setTableCount: function(tableName, count) {
+        try {
+            var cache = JSON.parse(localStorage.getItem('table_counts') || '{}');
+            cache[tableName] = { count: count, time: Date.now() };
+            localStorage.setItem('table_counts', JSON.stringify(cache));
+        } catch(e) {}
+    },
+
+    loadTableCounts: function(tables) {
+        var self = this;
+        var toCount = [];
+        tables.forEach(function(t) {
+            var name = (t.TABLA || t.tabla || '').trim();
+            if (self.getTableCount(name) === null) {
+                toCount.push(name);
+            }
+        });
+        if (toCount.length === 0) return;
+
+        Admin.post('modules/inspector/ajax/contar_tablas.php', { tables: toCount })
+        .then(function(response) {
+            var counts = response.data || {};
+            Object.keys(counts).forEach(function(name) {
+                self.setTableCount(name, counts[name]);
+                var badge = $('#tables-datatable tbody tr[data-table="' + name + '"] .table-count-badge');
+                if (badge.length) {
+                    badge.text(Admin.formatNumber(counts[name]));
+                }
+            });
+        });
     },
 
     initTablesDataTable: function() {
@@ -241,6 +317,10 @@ const Inspector = {
         this.filters = [];
         this.showingAll = false;
         this.currentPage = 1;
+        this._initialSql = null;
+
+        $('#sql-generated').text('SELECT * FROM ' + tableName);
+        $('#btn-reset-sql').hide();
 
         const url = new URL(window.location);
         url.searchParams.set('table', tableName);
@@ -284,7 +364,7 @@ const Inspector = {
             self.loadLastRecords(10);
         })
         .catch(function(error) {
-            console.error('Error cargando columnas:', error);
+            Admin.logError('loadTableInfo', error);
             Admin.showError($('#results-container'), 'Error al cargar columnas: ' + error.message);
         });
     },
@@ -297,9 +377,19 @@ const Inspector = {
             var name = (col.COLUMNA || '').trim();
             if (!name) return;
 
+            var typeNum = parseInt(col.TIPO) || 0;
+            var typeNames = {45: 'VARCHAR', 46: 'CHAR', 261: 'BLOB', 271: 'INTEGER', 279: 'SMALLINT', 327: 'DOUBLE', 32754: 'FLOAT', 520: 'DATE', 560: 'TIME', 580: 'TIMESTAMP', 26154: 'BIGINT'};
+            var typeName = typeNames[typeNum] || 'TYPE_' + typeNum;
+            var isPk = col.IS_PK == 1;
+
             var chip = $('<div class="column-chip selected">')
-                .text(name)
-                .attr('data-column', name);
+                .attr('data-column', name)
+                .attr('title', typeName + (isPk ? ' (PK)' : ''));
+            
+            var label = '<span class="col-name">' + name + '</span>';
+            var meta = '<span class="col-meta">' + typeName + (isPk ? ' 🔑' : '') + '</span>';
+            
+            chip.html(label + meta);
             container.append(chip);
         });
 
@@ -357,7 +447,7 @@ const Inspector = {
         })
         .catch(function(error) {
             self.hideOverlay();
-            console.error('Error cargando registros:', error);
+            Admin.logError('loadLastRecords', error);
             Admin.showError($('#results-container'), 'Error al cargar datos: ' + error.message);
         });
     },
@@ -366,6 +456,25 @@ const Inspector = {
      * Cargar todos los registros de la tabla
      */
     loadAllRecords: function() {
+        if (!this.currentTable) return;
+
+        var self = this;
+        var tableName = this.currentTable;
+        var cachedCount = this.getTableCount(tableName);
+
+        if (cachedCount !== null && cachedCount > 1000) {
+            Admin.confirm(
+                'La tabla "' + tableName + '" tiene ' + Admin.formatNumber(cachedCount) + ' registros. Cargar todos puede ser lento. ¿Continuar?',
+                'Muchos registros'
+            ).then(function(ok) {
+                if (ok) self._doLoadAllRecords();
+            });
+        } else {
+            this._doLoadAllRecords();
+        }
+    },
+
+    _doLoadAllRecords: function() {
         if (!this.currentTable) return;
 
         this.showingAll = true;
@@ -392,7 +501,7 @@ const Inspector = {
         })
         .catch(function(error) {
             self.hideOverlay();
-            console.error('Error cargando todos:', error);
+            Admin.logError('loadAllRecords', error);
             Admin.showError($('#results-container'), 'Error al cargar datos: ' + error.message);
         });
     },
@@ -432,7 +541,7 @@ const Inspector = {
         })
         .catch(function(error) {
             self.hideOverlay();
-            console.error('Error aplicando filtros:', error);
+            Admin.logError('applyFilters', error);
             Admin.showError($('#results-container'), 'Error al buscar: ' + error.message);
         });
     },
@@ -484,6 +593,14 @@ const Inspector = {
             return;
         }
 
+        if (operator === 'BETWEEN') {
+            var parts = value.split(',');
+            if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim()) {
+                Admin.showAlert('BETWEEN requiere dos valores separados por coma. Ejemplo: 100, 500', 'warning');
+                return;
+            }
+        }
+
         this.filters.push({ field: field, operator: operator, value: value });
         this.renderFilters();
         this.applyFilters();
@@ -498,9 +615,13 @@ const Inspector = {
 
         this.filters.forEach(function(filter, index) {
             var opLabel = filter.operator === 'LIKE' ? 'contiene' : filter.operator;
+            if (filter.operator === 'BETWEEN') {
+                var parts = filter.value.split(',');
+                opLabel = 'entre ' + parts[0].trim() + ' y ' + parts[1].trim();
+            }
             container.append(
                 '<div class="filter-tag">' +
-                    '<span>' + filter.field + ' ' + opLabel + ' &quot;' + filter.value + '&quot;</span>' +
+                    '<span>' + filter.field + ' ' + opLabel + (filter.operator !== 'BETWEEN' ? ' &quot;' + filter.value + '&quot;' : '') + '</span>' +
                     '<span class="filter-tag-remove" data-index="' + index + '">&times;</span>' +
                 '</div>'
             );
@@ -574,17 +695,22 @@ const Inspector = {
     // ============================================
 
     updateCount: function(count) {
-        $('#results-count').text(count.toLocaleString('es-ES'));
-        $('#current-table-count').text(count.toLocaleString('es-ES') + ' registros');
+        $('#results-count').text(Admin.formatNumber(count));
+        $('#current-table-count').text(Admin.formatNumber(count) + ' registros');
     },
 
     updateRecordsShownInfo: function(shown, total) {
         if (total !== undefined && shown !== undefined && shown < total) {
             $('#records-shown').show();
             $('#shown-count').text(shown);
-            $('#total-count').text(total.toLocaleString('es-ES'));
+            $('#total-count').text(Admin.formatNumber(total));
         } else {
             $('#records-shown').hide();
+        }
+        if (shown > 0) {
+            $('#export-buttons').show();
+        } else {
+            $('#export-buttons').hide();
         }
     },
 
@@ -609,6 +735,10 @@ const Inspector = {
                 if (f.operator === 'LIKE') {
                     return f.field + " LIKE '%" + f.value + "%'";
                 }
+                if (f.operator === 'BETWEEN') {
+                    var parts = f.value.split(',');
+                    return f.field + " BETWEEN '" + parts[0].trim() + "' AND '" + parts[1].trim() + "'";
+                }
                 return f.field + ' ' + f.operator + " '" + f.value + "'";
             });
             sql += '\nWHERE ' + conditions.join('\n  AND ');
@@ -623,6 +753,16 @@ const Inspector = {
         }
 
         $('#sql-generated').text(sql);
+
+        if (this._initialSql === null) {
+            this._initialSql = sql;
+        }
+
+        if (sql !== this._initialSql) {
+            $('#btn-reset-sql').show();
+        } else {
+            $('#btn-reset-sql').hide();
+        }
     },
 
     // ============================================
@@ -632,9 +772,34 @@ const Inspector = {
     openSqlTab: function() {
         var tableName = this.currentTable || 'CLIENTES';
         var currentSql = $('#sql-generated').text().trim();
-        $('#sql-input').val(currentSql || 'SELECT * FROM ' + tableName);
+        var sqlVal = currentSql || 'SELECT * FROM ' + tableName;
+        
         $('#sql-modal').show();
-        setTimeout(function() { $('#sql-input').focus(); }, 100);
+        
+        var textarea = document.getElementById('sql-input');
+        if (typeof CodeMirror !== 'undefined') {
+            if (this._cmEditor) {
+                this._cmEditor.setValue(sqlVal);
+                this._cmEditor.refresh();
+                setTimeout(function() { this._cmEditor.focus(); }.bind(this), 100);
+            } else {
+                this._cmEditor = CodeMirror.fromTextArea(textarea, {
+                    mode: 'text/x-sql',
+                    theme: 'monokai',
+                    lineNumbers: true,
+                    indentWithTabs: true,
+                    smartIndent: true,
+                    autofocus: true,
+                    lineWrapping: true
+                });
+                this._cmEditor.setValue(sqlVal);
+                var self = this;
+                setTimeout(function() { self._cmEditor.focus(); }, 100);
+            }
+        } else {
+            $('#sql-input').val(sqlVal);
+            setTimeout(function() { $('#sql-input').focus(); }, 100);
+        }
     },
 
     closeModals: function() {
@@ -642,7 +807,7 @@ const Inspector = {
     },
 
     executeSql: function() {
-        var sql = $('#sql-input').val().trim();
+        var sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-input').val().trim();
 
         if (!sql) {
             Admin.showAlert('Escribe una consulta SQL', 'warning');
@@ -663,11 +828,58 @@ const Inspector = {
             self.renderResults({ data: self.data }, true);
             self.updateCount(self.totalRecords);
             $('#sql-generated').text(sql);
+            if (self._initialSql === null) self._initialSql = sql;
+            $('#btn-reset-sql').toggle(sql !== self._initialSql);
         })
         .catch(function(error) {
             self.hideOverlay();
             Admin.showError($('#results-container'), 'Error SQL: ' + error.message);
         });
+    },
+
+    // ============================================
+    // EXPORTAR DATOS
+    // ============================================
+
+    exportCSV: function() {
+        if (!this.data || this.data.length === 0) {
+            Admin.showAlert('No hay datos para exportar', 'warning');
+            return;
+        }
+        var headers = Object.keys(this.data[0]);
+        var csvRows = [];
+        csvRows.push(headers.join(','));
+        this.data.forEach(function(row) {
+            var values = headers.map(function(h) {
+                var val = row[h] ?? '';
+                val = String(val).replace(/"/g, '""');
+                return '"' + val + '"';
+            });
+            csvRows.push(values.join(','));
+        });
+        var blob = new Blob(['\uFEFF' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (this.currentTable || 'datos') + '.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        Admin.toastSuccess('CSV exportado');
+    },
+
+    exportJSON: function() {
+        if (!this.data || this.data.length === 0) {
+            Admin.showAlert('No hay datos para exportar', 'warning');
+            return;
+        }
+        var blob = new Blob([JSON.stringify(this.data, null, 2)], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (this.currentTable || 'datos') + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        Admin.toastSuccess('JSON exportado');
     },
 
     // ============================================

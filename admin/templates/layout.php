@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="assets/css/admin.css">
     <link rel="stylesheet" href="assets/lib/jquery.dataTables.min.css">
     <link rel="stylesheet" href="assets/lib/select2.min.css">
+    <link rel="stylesheet" href="assets/lib/codemirror.min.css">
+    <link rel="stylesheet" href="assets/lib/codemirror-theme-monokai.min.css">
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛽</text></svg>">
@@ -40,6 +42,9 @@
     </header>
 
     <nav class="nav" role="navigation" aria-label="Navegación principal">
+        <button id="nav-toggle" class="nav-toggle" aria-label="Menú" aria-expanded="false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <ul class="nav-tabs" role="tablist">
             <?php foreach ($modules as $key => $mod): ?>
             <li class="nav-tab <?= $module === $key ? 'active' : '' ?>" role="presentation">
@@ -79,6 +84,8 @@
     <script src="assets/lib/jquery.min.js"></script>
     <script src="assets/lib/jquery.dataTables.min.js"></script>
     <script src="assets/lib/select2.min.js"></script>
+    <script src="assets/lib/codemirror.min.js"></script>
+    <script src="assets/lib/codemirror-sql.min.js"></script>
     <script src="assets/js/admin.js?v=3.0.0"></script>
     <?php if ($module === 'inspector'): ?>
     <script src="assets/js/inspector.js?v=3.0.0"></script>

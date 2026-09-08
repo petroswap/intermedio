@@ -388,6 +388,21 @@ a:hover {
     background: var(--white);
     border-bottom: 1px solid var(--gray-200);
     padding: 0 var(--space-xl);
+    display: flex;
+    align-items: center;
+}
+
+.nav-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    color: var(--gray-600);
 }
 
 .nav-tabs {
@@ -1847,6 +1862,10 @@ a:hover {
     gap: var(--space-sm);
     margin-bottom: var(--space-sm);
 }
+.sql-generated-actions {
+    display: flex;
+    gap: var(--space-xs);
+}
 .sql-generated-strip .sql-preview {
     margin: 0;
     padding: var(--space-sm) var(--space-md);
@@ -1947,14 +1966,34 @@ a:hover {
     border-radius: var(--radius-md); font-family: var(--font-mono);
     font-size: var(--text-sm); color: var(--text-primary); resize: vertical;
     line-height: 1.6; transition: border-color var(--duration-fast);
+
+/* CodeMirror overrides */
+.CodeMirror { border: 1px solid var(--border-default); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: var(--text-sm); height: auto; min-height: 140px; max-height: 400px; }
+.CodeMirror-scroll { min-height: 140px; }
+.sql-editor-panel .CodeMirror { height: calc(100vh - 380px); min-height: 200px; }
 }
 .sql-editor:focus { outline: none; border-color: var(--border-focus); box-shadow: 0 0 0 3px var(--primary-focus); }
 .sql-editor-hint { margin: var(--space-sm) 0 0; font-size: var(--text-xs); color: var(--text-tertiary); }
 
+/* Table count badge */
+.table-count-badge { font-size: var(--text-xs); color: var(--text-tertiary); margin-left: var(--space-xs); font-family: var(--font-mono); }
+
+/* Export buttons */
+.export-buttons { display: inline-flex; gap: var(--space-xs); margin-left: auto; }
+
 /* SQL Sugerencias */
 .sql-suggestions { margin-top: var(--space-md); }
 .sql-suggestions-title { font-size: var(--text-xs); color: var(--text-tertiary); margin-bottom: var(--space-xs); text-transform: uppercase; letter-spacing: 0.5px; }
-.sql-suggestions-list { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+.sql-suggestions-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+.sql-suggestion-group { display: flex; flex-wrap: wrap; gap: var(--space-xs); align-items: center; }
+.sql-suggestion-group-label {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    min-width: 50px;
+}
 .sql-suggestion {
     background: var(--bg-tertiary);
     border: 1px solid var(--border);
@@ -2159,6 +2198,9 @@ a:hover {
 .column-chip.selected:hover {
     background: var(--primary-600);
 }
+
+.column-chip .col-meta { font-size: 9px; opacity: 0.7; margin-left: 4px; white-space: nowrap; }
+.column-chip.selected .col-meta { opacity: 0.8; }
 
 /* ============================================
  * FILTROS
@@ -2854,6 +2896,14 @@ a:hover {
     .content-body {
         padding: var(--space-md);
     }
+
+    .sql-module-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .sql-editor-panel .CodeMirror {
+        height: 300px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -2869,6 +2919,19 @@ a:hover {
         flex-direction: column;
         text-align: center;
     }
+
+    .nav-toggle { display: flex; }
+
+    .nav-tabs {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .nav-tabs.open { display: flex; }
+
+    .nav-tab { width: 100%; }
+    .nav-tab a { justify-content: center; }
 }
 
 /* ============================================
@@ -3908,4 +3971,43 @@ a:hover {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+/* ============================================
+ * SKELETON LOADING
+ * ============================================ */
+.skeleton {
+    background: var(--gray-100);
+    border-radius: var(--radius-md);
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-line {
+    height: 14px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+}
+
+.skeleton-line.w-50 { width: 50%; }
+.skeleton-line.w-75 { width: 75%; }
+.skeleton-line.w-100 { width: 100%; }
+
+.skeleton-row {
+    display: flex;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-default);
+}
+
+.skeleton-cell {
+    height: 12px;
+    background: var(--gray-100);
+    border-radius: 4px;
+    flex: 1;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
 }

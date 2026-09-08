@@ -107,6 +107,7 @@
                             <option value="<">Menor que</option>
                             <option value=">=">Mayor o igual</option>
                             <option value="<=">Menor o igual</option>
+                            <option value="BETWEEN">Entre (BETWEEN)</option>
                         </select>
                         <input type="text" id="filter-value" class="form-input form-input-sm" placeholder="Valor...">
                         <button id="btn-add-filter" class="btn btn-sm btn-outline">+ Agregar filtro</button>
@@ -127,10 +128,16 @@
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                             SQL Generado
                         </h4>
-                        <button id="btn-copy-sql" class="btn btn-xs btn-ghost" title="Copiar al portapapeles">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                            Copiar
-                        </button>
+                        <div class="sql-generated-actions">
+                            <button id="btn-reset-sql" class="btn btn-xs btn-ghost" title="Restablecer query inicial" style="display:none;">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                Limpiar
+                            </button>
+                            <button id="btn-copy-sql" class="btn btn-xs btn-ghost" title="Copiar al portapapeles">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                Copiar
+                            </button>
+                        </div>
                     </div>
                     <pre class="sql-preview"><code id="sql-generated">SELECT * FROM tabla</code></pre>
                 </div>
@@ -150,6 +157,16 @@
                     <span id="records-shown" style="display:none;">
                         Mostrando <span id="shown-count">0</span> de <span id="total-count">0</span> registros
                     </span>
+                    <div id="export-buttons" class="export-buttons" style="display:none;">
+                        <button id="btn-export-csv" class="btn btn-xs btn-ghost" title="Exportar a CSV">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            CSV
+                        </button>
+                        <button id="btn-export-json" class="btn btn-xs btn-ghost" title="Exportar a JSON">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            JSON
+                        </button>
+                    </div>
                 </div>
             </main>
         </div>
@@ -173,12 +190,27 @@
             <div class="sql-suggestions">
                 <p class="sql-suggestions-title">Sugerencias:</p>
                 <div class="sql-suggestions-list">
-                    <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE}">Todos los campos</button>
-                    <button class="sql-suggestion" data-sql="SELECT FIRST 10 * FROM {TABLE}">Primeros 10</button>
-                    <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} ORDER BY 1">Ordenar por 1ra columna</button>
-                    <button class="sql-suggestion" data-sql="SELECT COUNT(*) AS total FROM {TABLE}">Contar registros</button>
-                    <button class="sql-suggestion" data-sql="SELECT FIRST 10 * FROM {TABLE} WHERE ">Con WHERE</button>
-                    <button class="sql-suggestion" data-sql="SELECT DISTINCT  FROM {TABLE}">Valores únicos</button>
+                    <div class="sql-suggestion-group">
+                        <span class="sql-suggestion-group-label">Básico</span>
+                        <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE}">Todos los campos</button>
+                        <button class="sql-suggestion" data-sql="SELECT FIRST 10 * FROM {TABLE}">Primeros 10</button>
+                        <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} ORDER BY 1">Ordenar por 1ra columna</button>
+                        <button class="sql-suggestion" data-sql="SELECT COUNT(*) AS total FROM {TABLE}">Contar registros</button>
+                    </div>
+                    <div class="sql-suggestion-group">
+                        <span class="sql-suggestion-group-label">Filtros</span>
+                        <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} WHERE {COL} = ''">Igual a valor</button>
+                        <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} WHERE {COL} LIKE '%texto%'">Búsqueda parcial</button>
+                        <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} WHERE {COL} BETWEEN '' AND ''">Rango BETWEEN</button>
+                        <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} WHERE {COL} IN ('', '')">Lista IN</button>
+                    </div>
+                    <div class="sql-suggestion-group">
+                        <span class="sql-suggestion-group-label">Avanzado</span>
+                        <button class="sql-suggestion" data-sql="SELECT DISTINCT {COL} FROM {TABLE}">Valores únicos</button>
+                        <button class="sql-suggestion" data-sql="SELECT {COL}, COUNT(*) AS total FROM {TABLE} GROUP BY {COL}">Agrupar por columna</button>
+                        <button class="sql-suggestion" data-sql="SELECT * FROM {TABLE} WHERE {COL} IS NOT NULL">No nulos</button>
+                        <button class="sql-suggestion" data-sql="SELECT FIRST 100 * FROM {TABLE} ROWS 1 TO 100">ROWS 1 a 100</button>
+                    </div>
                 </div>
             </div>
         </div>
