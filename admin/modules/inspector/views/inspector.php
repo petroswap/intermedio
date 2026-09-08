@@ -27,13 +27,11 @@
                     <thead>
                         <tr>
                             <th>Tabla</th>
-                            <th>Registros</th>
-                            <th>Columnas</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tables-tbody">
-                        <tr><td colspan="4"><div class="loading"><div class="spinner"></div><p>Cargando tablas...</p></div></td></tr>
+                        <tr><td colspan="2"><div class="loading"><div class="spinner"></div><p>Cargando tablas...</p></div></td></tr>
                     </tbody>
                 </table>
             </div>

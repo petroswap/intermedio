@@ -150,9 +150,9 @@ const Inspector = {
         const self = this;
         const tbody = $('#tables-tbody');
         tbody.html(
-            '<tr><td colspan="4"><div class="skeleton-cell name" style="width:150px"></div></td></tr>' +
-            '<tr><td colspan="4"><div class="skeleton-cell name" style="width:120px"></div></td></tr>' +
-            '<tr><td colspan="4"><div class="skeleton-cell name" style="width:180px"></div></td></tr>'
+            '<tr><td colspan="2"><div class="skeleton-cell name" style="width:150px"></div></td></tr>' +
+            '<tr><td colspan="2"><div class="skeleton-cell name" style="width:120px"></div></td></tr>' +
+            '<tr><td colspan="2"><div class="skeleton-cell name" style="width:180px"></div></td></tr>'
         );
 
         Admin.post('modules/inspector/ajax/listar_tablas.php', {})
@@ -160,12 +160,12 @@ const Inspector = {
             if (response.data && response.data.length > 0) {
                 self.renderTablesList(response.data);
             } else {
-                tbody.html('<tr><td colspan="4" class="text-center" style="padding:2rem;color:var(--text-tertiary)">No se encontraron tablas</td></tr>');
+                tbody.html('<tr><td colspan="2" class="text-center" style="padding:2rem;color:var(--text-tertiary)">No se encontraron tablas</td></tr>');
             }
         })
         .catch(function(error) {
             console.error('Error cargando tablas:', error);
-            tbody.html('<tr><td colspan="4" class="text-center" style="padding:2rem;color:var(--error)">Error al conectar con la BD</td></tr>');
+            tbody.html('<tr><td colspan="2" class="text-center" style="padding:2rem;color:var(--error)">Error al conectar con la BD</td></tr>');
             Admin.showAlert('No se pudo conectar a la base de datos Firebird.', 'danger', 'Error de conexión');
         });
     },
@@ -176,8 +176,6 @@ const Inspector = {
 
         tables.forEach(function(table) {
             const name = (table.TABLA || table.tabla || '').trim();
-            const records = parseInt(table.REGISTROS || table.registros || 0);
-            const columns = parseInt(table.COLUMNAS || table.columnas || 0);
 
             tbody.append(
                 '<tr data-table="' + name + '" class="clickable-row">' +
@@ -186,10 +184,6 @@ const Inspector = {
                             '<span class="table-name">' + name + '</span>' +
                         '</div>' +
                     '</td>' +
-                    '<td class="record-count-cell">' +
-                        '<span class="count">' + records.toLocaleString('es-ES') + '</span>' +
-                    '</td>' +
-                    '<td class="column-count-cell">' + columns + '</td>' +
                     '<td>' +
                         '<button class="table-action-btn" data-table="' + name + '">Ver datos</button>' +
                     '</td>' +
@@ -216,10 +210,8 @@ const Inspector = {
                 paginate: { first: 'Primero', last: 'Último', next: '→', previous: '←' }
             },
             pageLength: 25,
-            order: [[1, 'desc']],
+            order: [[0, 'asc']],
             columns: [
-                { orderable: true },
-                { orderable: true },
                 { orderable: true },
                 { orderable: false }
             ],
