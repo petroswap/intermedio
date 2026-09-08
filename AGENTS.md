@@ -24,6 +24,8 @@ intermedio/
 │   ├── modules/
 │   │   ├── inspector/        # Módulo Inspector (tablas, columnas, datos)
 │   │   │   ├── ajax/         # Endpoints AJAX
+│   │   │   │   ├── test_connection.php  # Test de conexión a BD
+│   │   │   │   └── ...
 │   │   │   └── views/        # Vistas HTML
 │   │   └── sql/              # Módulo Consola SQL
 │   │       └── views/        # sql.php (editor + ejemplos)
@@ -48,6 +50,7 @@ intermedio/
 |--------|-------------|----------|
 | **Inspector** | Explorar tablas, columnas, datos, metadatos | `inspector/` |
 | **BD Info** | Info general de la base de datos | Integrado en inspector |
+| **Test Conexión** | Verificar conexión a Firebird/MySQL, latencia, versión | `inspector/ajax/test_connection.php` |
 | **Consola SQL** | Editor SQL con ejemplos (solo SELECT) | `sql/` |
 
 ## Configuración
@@ -82,6 +85,20 @@ El sistema detecta automáticamente el entorno según la IP del cliente:
 | 37.143.127.188 | `igara_oficina` |
 | 37.143.127.164 | `ruta` |
 
+### Firebird PDO DSN (IMPORTANTE)
+
+El driver PDO de Firebird **no soporta** `host=` ni `service=` en el DSN. Usar siempre:
+
+```php
+// Local (localhost/127.0.0.1/::1)
+$dsn = 'firebird:dbname=C:\path\to\db.fdb;charset=UTF8';
+
+// Remoto
+$dsn = 'firebird:dbname=192.168.4.101/3050:C:\path\to\db.fdb;charset=UTF8';
+```
+
+**No usar:** `firebird:host=X;service=Y;dbname=Z` → Firebird lo interpreta mal y falla con `host "C"`.
+
 ## Convenciones de Código
 
 ### PHP
@@ -109,14 +126,15 @@ git status
 # Buscar en el código
 grep -r "función" admin/
 
-# Probar conexión Firebird
-php admin/scripts/test_full.php
+# Probar conexión Firebird (desde el admin UI)
+# Botón "Test Conexión" en el módulo Inspector
 ```
 
 ## Archivos Importantes
 
 - `admin/config.php` — Carga de entorno y configuración
-- `admin/core/Database.php` — Conexión y queries
+- `admin/core/Database.php` — Conexión y queries (ver nota Firebird DSN más arriba)
+- `admin/modules/inspector/ajax/test_connection.php` — Test de conexión a BD
 - `admin/modules/inspector/ajax/ejecutar_sql.php` — Endpoint SQL (con validación SELECT)
 - `admin/assets/js/sql.js` — Frontend consola SQL
 - `.env` — Credenciales (no versionado)
