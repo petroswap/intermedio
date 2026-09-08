@@ -27,3 +27,8 @@
 *.swp
 *.swo
 *~
+
+
+code/*
+inspector/*
+ruta_intermedio/*
