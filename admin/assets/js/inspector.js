@@ -129,6 +129,9 @@ const Inspector = {
             if (sql) { $('#sql-input').val(sql); self.executeSql(); }
         });
 
+        // Test conexión
+        $(document).on('click', '#btn-test-connection', function() { self.testConnection(); });
+
         // Modales
         $(document).on('click', '.modal-close', function() { self.closeModals(); });
         $(document).on('keydown', function(e) {
@@ -666,6 +669,54 @@ const Inspector = {
         .catch(function(error) {
             self.hideOverlay();
             Admin.showError($('#results-container'), 'Error SQL: ' + error.message);
+        });
+    },
+
+    // ============================================
+    // TEST DE CONEXIÓN
+    // ============================================
+
+    testConnection: function() {
+        var $btn = $('#btn-test-connection');
+        var $result = $('#connection-test-result');
+
+        $btn.prop('disabled', true).addClass('loading');
+        $result.hide().removeClass('connection-ok connection-error');
+
+        var self = this;
+        Admin.post('modules/inspector/ajax/test_connection.php', {})
+        .then(function(response) {
+            var d = response.data || {};
+            var html = '<div class="connection-test-card">' +
+                '<div class="connection-test-header">' +
+                    '<span class="connection-icon ok">&#10003;</span>' +
+                    '<strong>Conexión exitosa</strong>' +
+                '</div>' +
+                '<div class="connection-test-details">' +
+                    '<div><span>Driver:</span> <code>' + (d.driver || '-') + '</code></div>' +
+                    '<div><span>Versión:</span> <code>' + (d.version || '-') + '</code></div>' +
+                    '<div><span>Tablas:</span> <code>' + (d.tables_count || 0) + '</code></div>' +
+                    '<div><span>Latencia:</span> <code>' + (d.latency_ms || 0) + ' ms</code></div>' +
+                '</div>' +
+            '</div>';
+
+            $result.html(html).addClass('connection-ok').fadeIn(200);
+        })
+        .catch(function(error) {
+            var html = '<div class="connection-test-card">' +
+                '<div class="connection-test-header">' +
+                    '<span class="connection-icon error">&#10007;</span>' +
+                    '<strong>Error de conexión</strong>' +
+                '</div>' +
+                '<div class="connection-test-details">' +
+                    '<div class="connection-error-msg">' + (error.message || 'Error desconocido') + '</div>' +
+                '</div>' +
+            '</div>';
+
+            $result.html(html).addClass('connection-error').fadeIn(200);
+        })
+        .always(function() {
+            $btn.prop('disabled', false).removeClass('loading');
         });
     }
 };

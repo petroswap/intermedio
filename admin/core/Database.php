@@ -64,17 +64,15 @@ class Database
         $path = $this->config['path'] ?? '';
         $charset = $this->config['charset'] ?? 'UTF8';
 
-        // Para Firebird local (localhost), usar formato simplificado
-        if ($server === 'localhost' || $server === '127.0.0.1') {
+        if ($server === 'localhost' || $server === '127.0.0.1' || $server === '::1') {
             $dsn = sprintf(
                 'firebird:dbname=%s;charset=%s',
                 $path,
                 $charset
             );
         } else {
-            // Para servidor remoto
             $dsn = sprintf(
-                'firebird:host=%s;service=%s;dbname=%s;charset=%s',
+                'firebird:dbname=%s/%s:%s;charset=%s',
                 $server,
                 $port,
                 $path,
