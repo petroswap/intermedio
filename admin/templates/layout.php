@@ -33,6 +33,9 @@
             <h1 class="header-title"><?= APP_NAME ?></h1>
         </div>
         <div class="header-right">
+            <button id="btn-test-connection" class="btn btn-sm btn-ghost" title="Test de conexión a la base de datos">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </button>
             <button id="theme-toggle" class="theme-toggle" title="Cambiar tema" aria-label="Cambiar tema claro/oscuro">
                 <span class="theme-icon-light">☀️</span>
                 <span class="theme-icon-dark">🌙</span>

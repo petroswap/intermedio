@@ -192,6 +192,7 @@ const Inspector = {
 
         // Test conexión
         $(document).on('click', '#btn-test-connection', function() { self.testConnection(); });
+        $(document).on('click', '#btn-close-connection', function() { self.closeModals(); });
 
         // Modales
         $(document).on('click', '.modal-close', function() { self.closeModals(); });
@@ -924,11 +925,11 @@ const Inspector = {
     // ============================================
 
     testConnection: function() {
-        var $btn = $('#btn-test-connection');
-        var $result = $('#connection-test-result');
+        var $modal = $('#connection-modal');
+        var $content = $('#connection-modal-content');
 
-        $btn.prop('disabled', true).addClass('loading');
-        $result.hide().removeClass('connection-ok connection-error');
+        $modal.show();
+        $content.html('<div class="loading"><div class="spinner"></div><p>Verificando conexión...</p></div>');
 
         var self = this;
         Admin.post('modules/inspector/ajax/test_connection.php', {})
@@ -947,7 +948,7 @@ const Inspector = {
                 '</div>' +
             '</div>';
 
-            $result.html(html).addClass('connection-ok').fadeIn(200);
+            $content.html(html);
         })
         .catch(function(error) {
             var html = '<div class="connection-test-card">' +
@@ -960,10 +961,7 @@ const Inspector = {
                 '</div>' +
             '</div>';
 
-            $result.html(html).addClass('connection-error').fadeIn(200);
-        })
-        .always(function() {
-            $btn.prop('disabled', false).removeClass('loading');
+            $content.html(html);
         });
     },
 

@@ -12,16 +12,11 @@
                         <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         <input type="text" id="tables-search" class="search-input" placeholder="Buscar tablas...">
                     </div>
-                    <button id="btn-test-connection" class="btn btn-secondary btn-sm" title="Test de conexión">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                        Test Conexión
-                    </button>
                     <button id="btn-refresh-tables" class="btn btn-icon btn-secondary" title="Actualizar">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     </button>
                 </div>
             </div>
-            <div id="connection-test-result" class="connection-test-result" style="display:none;"></div>
             <div class="data-table-wrapper">
                 <table id="tables-datatable" class="data-table" style="width:100%">
                     <thead>
@@ -64,7 +59,7 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     SQL
                 </button>
-                <button id="btn-relaciones" class="btn btn-secondary btn-sm">
+                <button id="btn-relaciones" class="btn btn-secondary btn-sm" style="display:none;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                     Relaciones
                 </button>
@@ -212,6 +207,28 @@
     </div>
 </div>
 
+<!-- Connection Test Modal -->
+<div id="connection-modal" class="modal" style="display:none;">
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                Test de Conexión
+            </h3>
+            <button class="modal-close" id="btn-close-connection-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="connection-modal-content">
+                <div class="loading"><div class="spinner"></div><p>Verificando conexión...</p></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="btn-close-connection" class="btn btn-secondary">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <!-- SQL Modal -->
 <div id="sql-modal" class="modal" style="display:none;">
     <div class="modal-overlay"></div>
@@ -253,8 +270,8 @@
                 </div>
             </div>
 
-            <!-- Favoritos en modal -->
-            <div class="modal-favorites">
+            <!-- Favoritos en modal (oculto - en desarrollo) -->
+            <div class="modal-favorites" style="display:none;">
                 <div class="modal-favorites-header">
                     <span class="modal-favorites-title">⭐ Favoritos</span>
                     <div class="modal-favorites-actions">
