@@ -92,7 +92,7 @@ const Inspector = {
         $(document).on('click', '#btn-show-all', function() { self.loadAllRecords(); });
         $(document).on('click', '#btn-sql', function() { self.openSqlTab(); });
         $(document).on('click', '#btn-relaciones', function() { self.openRelationships(); });
-        $(document).on('click', '#btn-back-from-relations', function(e) { e.preventDefault(); self.showTablesView(); });
+        $(document).on('click', '#btn-back-from-relations', function(e) { e.preventDefault(); self.showTableView(); self.loadTableInfo(); });
         $(document).on('click', '#btn-rel-back-data', function() { self.showTableView(); self.loadTableInfo(); });
 
         // Columnas - select all/none
@@ -147,6 +147,7 @@ const Inspector = {
         $(document).on('click', '#btn-save-bookmark', function() { self.saveFavorite(); });
         $(document).on('click', '#btn-clear-bookmarks', function() { self.clearFavorites(); });
         $(document).on('click', '.sql-bookmark-item', function(e) {
+            if ($(e.target).hasClass('bookmark-delete-btn')) return;
             var sql = $(e.currentTarget).data('sql');
             if (sql) {
                 if (self._cmEditor) {
@@ -155,6 +156,11 @@ const Inspector = {
                     $('#sql-input').val(sql);
                 }
             }
+        });
+        $(document).on('click', '.bookmark-delete-btn', function(e) {
+            e.stopPropagation();
+            var id = $(e.currentTarget).data('id');
+            if (id) self.deleteFavorite(id);
         });
         $(document).on('click', '#btn-export-favorites', function() { self.exportFavorites(); });
         $(document).on('click', '#btn-import-favorites', function() { $('#import-favorites-input').click(); });
@@ -839,6 +845,12 @@ const Inspector = {
             return;
         }
 
+        var limpia = sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--.*$/gm, '').trim().substring(0, 10).toUpperCase();
+        if (!limpia.startsWith('SELECT') && !limpia.startsWith('WITH')) {
+            Admin.showAlert('Solo se permiten consultas SELECT de lectura', 'warning');
+            return;
+        }
+
         Admin.showLoading($('#results-container'));
         this.closeModals();
         this.showOverlay('Ejecutando consulta SQL...');
@@ -982,12 +994,13 @@ const Inspector = {
             $modalList.html(empty);
             return;
         }
+        var self = this;
         var html = '';
         this.favorites.forEach(function(fav) {
-            var truncated = fav.sql.length > 60 ? fav.sql.substring(0, 60) + '...' : fav.sql;
             html += '<div class="sql-history-item sql-bookmark-item" data-sql="' + fav.sql.replace(/"/g, '&quot;') + '">' +
                 '<span class="sql-history-icon">⭐</span>' +
-                '<span class="sql-history-sql" title="' + fav.name + '">' + fav.name + ' — ' + truncated + '</span>' +
+                '<span class="sql-history-sql" title="' + fav.sql.replace(/"/g, '&quot;') + '">' + fav.name + '</span>' +
+                '<button class="bookmark-delete-btn" data-id="' + fav.id + '" title="Eliminar favorito">&times;</button>' +
             '</div>';
         });
         $list.html(html);
@@ -1041,6 +1054,21 @@ const Inspector = {
         })
         .catch(function(error) {
             Admin.logError('clearFavorites', error);
+        });
+    },
+
+    deleteFavorite: function(id) {
+        var self = this;
+        Admin.post('modules/inspector/ajax/favorites.php', {
+            action: 'delete',
+            id: id
+        })
+        .then(function() {
+            self.loadFavorites();
+            Admin.toastSuccess('Favorito eliminado');
+        })
+        .catch(function(error) {
+            Admin.logError('deleteFavorite', error);
         });
     },
 

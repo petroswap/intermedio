@@ -180,9 +180,9 @@
     <div id="view-relationships" style="display:none;">
         <div class="table-data-header">
             <div class="table-data-header-left">
-                <button id="btn-back-from-relations" class="btn btn-back" title="Volver a tablas">
+                <button id="btn-back-from-relations" class="btn btn-back" title="Volver a datos">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-                    Tablas
+                    Volver
                 </button>
                 <div class="table-data-title-group">
                     <h2 id="relations-table-name" class="table-data-title">Relaciones</h2>

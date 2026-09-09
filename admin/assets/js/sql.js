@@ -1,16 +1,31 @@
 const SqlModule = {
-    history: [],
     _resultsDt: null,
     _cmEditor: null,
 
     init: function() {
         this.bindEvents();
-        this.loadHistory();
         this.loadBookmarks();
         this.initCodeMirror();
+        this.syncPanelHeights();
+        var self = this;
+        $(window).off('resize.sqlmod').on('resize.sqlmod', function() {
+            self.syncPanelHeights();
+        });
+    },
+
+    syncPanelHeights: function() {
+        var $left = $('.sql-editor-panel');
+        var $right = $('.sql-results-panel');
+        if ($left.length && $right.length) {
+            var leftH = $left.outerHeight();
+            if (leftH > 0) {
+                $right.css('height', leftH + 'px');
+            }
+        }
     },
 
     initCodeMirror: function() {
+        var self = this;
         var textarea = document.getElementById('sql-editor');
         if (typeof CodeMirror !== 'undefined' && textarea && !this._cmEditor) {
             this._cmEditor = CodeMirror.fromTextArea(textarea, {
@@ -22,6 +37,8 @@ const SqlModule = {
                 autofocus: true,
                 lineWrapping: true
             });
+            // Sync heights after CodeMirror finishes layout
+            setTimeout(function() { self.syncPanelHeights(); }, 100);
         }
     },
 
@@ -33,9 +50,15 @@ const SqlModule = {
         $(document).on('click.sqlmod', '#btn-sql-export-csv', () => this.exportCSV());
         $(document).on('click.sqlmod', '#btn-sql-export-json', () => this.exportJSON());
         $(document).on('click.sqlmod', '#btn-save-bookmark', () => this.saveBookmark());
-        $(document).on('click.sqlmod', '#btn-clear-bookmarks', () => this.clearBookmarks());
-        $(document).on('click.sqlmod', '#btn-clear-history', () => this.clearHistory());
+        $(document).on('click.sqlmod', '#btn-sql-export-favorites', () => this.exportFavorites());
+        $(document).on('click.sqlmod', '#btn-sql-import-favorites', () => $('#sql-import-favorites-input').click());
+        $(document).on('change.sqlmod', '#sql-import-favorites-input', (e) => {
+            var file = e.target.files[0];
+            if (file) this.importFavorites(file);
+            $(e.target).val('');
+        });
         $(document).on('click.sqlmod', '.sql-bookmark-item', (e) => {
+            if ($(e.target).hasClass('bookmark-delete-btn')) return;
             const sql = $(e.currentTarget).data('sql');
             if (sql) {
                 if (this._cmEditor) {
@@ -45,28 +68,23 @@ const SqlModule = {
                 }
             }
         });
-        $(document).on('click.sqlmod', '.sql-history-item', (e) => {
-            const sql = $(e.currentTarget).data('sql');
-            if (sql) {
-                if (this._cmEditor) {
-                    this._cmEditor.setValue(sql);
-                } else {
-                    $('#sql-editor').val(sql);
-                }
-            }
+        $(document).on('click.sqlmod', '.bookmark-delete-btn', (e) => {
+            e.stopPropagation();
+            var id = $(e.currentTarget).data('id');
+            if (id) this.deleteBookmark(id);
         });
 
-        // SQL Examples toggle
-        $(document).on('click.sqlmod', '#btn-toggle-examples', () => {
-            const $panel = $('#sql-examples-panel');
-            const $arrow = $('#btn-toggle-examples .sql-examples-arrow');
-            const isOpen = $panel.is(':visible');
-            $arrow.text(isOpen ? '▶' : '▼');
-            $panel.slideToggle(200);
+        // Tabs switching
+        $(document).on('click.sqlmod', '.sql-tab', (e) => {
+            var tab = $(e.currentTarget).data('tab');
+            $('.sql-tab').removeClass('active');
+            $(e.currentTarget).addClass('active');
+            $('.sql-tab-pane').removeClass('active');
+            $('#tab-' + tab).addClass('active');
         });
 
-        // SQL Example click - insert into editor
-        $(document).on('click.sqlmod', '.sql-example-item', (e) => {
+        // SQL Example chip click - insert into editor
+        $(document).on('click.sqlmod', '.sql-example-chip', (e) => {
             const sql = $(e.currentTarget).data('sql');
             if (sql) {
                 if (this._cmEditor) {
@@ -115,15 +133,15 @@ const SqlModule = {
             data: { sql: sql },
             success: (response) => {
                 const elapsed = Date.now() - startTime;
-                this.addToHistory(sql, response.success);
+                const rows = response.data && response.data.data ? response.data.data : [];
 
-                if (response.success && response.data && response.data.length > 0) {
-                    this.renderResults(response.data, elapsed, response.count);
+                if (response.success && rows.length > 0) {
+                    this.renderResults(rows, elapsed, rows.length);
                 } else if (response.success) {
                     $container.html('<div class="empty-state"><div class="empty-state-icon">📭</div><p class="empty-state-description">La consulta no devolvió resultados</p></div>');
                     $('#sql-results-count').text('0');
                     $('#sql-results-info').show();
-                    $('#sql-execution-time').text(`${elapsed}ms · 0 registros`);
+                    $('#sql-execution-time').text(elapsed + 'ms · 0 registros');
                 } else {
                     $container.html(`<div class="sql-error-box"><div class="sql-error-title">❌ Error</div><pre class="sql-error-message">${response.msg || 'Error desconocido'}</pre></div>`);
                     $('#sql-results-count').text('0');
@@ -174,58 +192,6 @@ const SqlModule = {
         }
     },
 
-    addToHistory: function(sql, success) {
-        this.history.unshift({
-            sql: sql,
-            success: success,
-            time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-        });
-        if (this.history.length > 20) this.history.pop();
-        this.renderHistory();
-        try { localStorage.setItem('sql_history', JSON.stringify(this.history)); } catch(e) {}
-    },
-
-    loadHistory: function() {
-        try {
-            const saved = localStorage.getItem('sql_history');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) {
-                    this.history = parsed.filter(item => item && typeof item.sql === 'string');
-                }
-            }
-        } catch(e) {
-            this.history = [];
-        }
-        this.renderHistory();
-    },
-
-    clearHistory: function() {
-        this.history = [];
-        this.renderHistory();
-        try { localStorage.removeItem('sql_history'); } catch(e) {}
-        Admin.toastSuccess('Historial eliminado');
-    },
-
-    renderHistory: function() {
-        const $list = $('#sql-history');
-        if (this.history.length === 0) {
-            $list.html('<div class="empty-state" style="padding: 1rem;"><p class="empty-state-description">Sin consultas recientes</p></div>');
-            return;
-        }
-        let html = '';
-        this.history.forEach(item => {
-            const icon = item.success ? '✅' : '❌';
-            const truncated = item.sql.length > 60 ? item.sql.substring(0, 60) + '...' : item.sql;
-            html += `<div class="sql-history-item" data-sql="${item.sql.replace(/"/g, '&quot;')}">
-                <span class="sql-history-icon">${icon}</span>
-                <span class="sql-history-sql">${truncated}</span>
-                <span class="sql-history-time">${item.time}</span>
-            </div>`;
-        });
-        $list.html(html);
-    },
-
     clearEditor: function() {
         if (this._cmEditor) {
             this._cmEditor.setValue('');
@@ -236,63 +202,109 @@ const SqlModule = {
     },
 
     // ============================================
-    // BOOKMARKS
+    // BOOKMARKS (server-side favorites)
     // ============================================
 
-    bookmarks: [],
+    favorites: [],
 
     loadBookmarks: function() {
-        try {
-            const saved = localStorage.getItem('sql_bookmarks');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                if (Array.isArray(parsed)) {
-                    this.bookmarks = parsed.filter(item => item && typeof item.sql === 'string');
-                }
-            }
-        } catch(e) {
-            this.bookmarks = [];
-        }
-        this.renderBookmarks();
+        var self = this;
+        Admin.get('modules/inspector/ajax/favorites.php', {})
+        .then(function(response) {
+            self.favorites = response.data || [];
+            self.renderBookmarks();
+        })
+        .catch(function(error) {
+            Admin.logError('SqlModule.loadBookmarks', error);
+            self.favorites = [];
+            self.renderBookmarks();
+        });
     },
 
     saveBookmark: function() {
-        const sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-editor').val().trim();
+        var self = this;
+        var sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-editor').val().trim();
         if (!sql) {
             Admin.showAlert('No hay consulta para guardar', 'warning');
             return;
         }
 
-        const name = prompt('Nombre para esta consulta:', 'Mi consulta');
+        var name = prompt('Nombre para esta consulta:', 'Mi consulta');
         if (!name) return;
 
-        this.bookmarks.unshift({ name: name, sql: sql });
-        if (this.bookmarks.length > 20) this.bookmarks.pop();
-        this.renderBookmarks();
-        try { localStorage.setItem('sql_bookmarks', JSON.stringify(this.bookmarks)); } catch(e) {}
-        Admin.toastSuccess('Consulta guardada como favorita');
+        Admin.post('modules/inspector/ajax/favorites.php', {
+            action: 'add',
+            name: name,
+            sql: sql,
+            table: ''
+        })
+        .then(function() {
+            self.loadBookmarks();
+            Admin.toastSuccess('Consulta guardada como favorita');
+        })
+        .catch(function(error) {
+            Admin.logError('SqlModule.saveBookmark', error);
+        });
     },
 
-    clearBookmarks: function() {
-        this.bookmarks = [];
-        this.renderBookmarks();
-        try { localStorage.removeItem('sql_bookmarks'); } catch(e) {}
-        Admin.toastSuccess('Favoritos eliminados');
+    deleteBookmark: function(id) {
+        var self = this;
+        Admin.post('modules/inspector/ajax/favorites.php', {
+            action: 'delete',
+            id: id
+        })
+        .then(function() {
+            self.loadBookmarks();
+            Admin.toastSuccess('Favorito eliminado');
+        })
+        .catch(function(error) {
+            Admin.logError('SqlModule.deleteBookmark', error);
+        });
+    },
+
+    exportFavorites: function() {
+        window.location.href = 'modules/inspector/ajax/favorites.php?action=export';
+    },
+
+    importFavorites: function(file) {
+        var self = this;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var imported = JSON.parse(e.target.result);
+                var favs = imported.favorites || (Array.isArray(imported) ? imported : []);
+                Admin.post('modules/inspector/ajax/favorites.php', {
+                    action: 'import',
+                    favorites: JSON.stringify(favs)
+                })
+                .then(function(response) {
+                    var d = response.data || {};
+                    self.loadBookmarks();
+                    Admin.toastSuccess('Importados: ' + (d.added || 0) + ' nuevos, ' + (d.updated || 0) + ' actualizados');
+                })
+                .catch(function(error) {
+                    Admin.logError('SqlModule.importFavorites', error);
+                });
+            } catch (err) {
+                Admin.showAlert('Archivo JSON no válido', 'danger');
+            }
+        };
+        reader.readAsText(file);
     },
 
     renderBookmarks: function() {
-        const $list = $('#sql-bookmarks');
-        if (this.bookmarks.length === 0) {
+        var $list = $('#sql-bookmarks');
+        if (!this.favorites || this.favorites.length === 0) {
             $list.html('<div class="empty-state" style="padding: 1rem;"><p class="empty-state-description">Sin consultas guardadas</p></div>');
             return;
         }
-        let html = '';
-        this.bookmarks.forEach(item => {
-            const truncated = item.sql.length > 60 ? item.sql.substring(0, 60) + '...' : item.sql;
-            html += `<div class="sql-history-item sql-bookmark-item" data-sql="${item.sql.replace(/"/g, '&quot;')}">
-                <span class="sql-history-icon">⭐</span>
-                <span class="sql-history-sql" title="${item.name}">${item.name} — ${truncated}</span>
-            </div>`;
+        var html = '';
+        this.favorites.forEach(function(fav) {
+            html += '<div class="sql-history-item sql-bookmark-item" data-sql="' + fav.sql.replace(/"/g, '&quot;') + '">' +
+                '<span class="sql-history-icon">⭐</span>' +
+                '<span class="sql-history-sql" title="' + fav.sql.replace(/"/g, '&quot;') + '">' + fav.name + '</span>' +
+                '<button class="bookmark-delete-btn" data-id="' + fav.id + '" title="Eliminar favorito">&times;</button>' +
+            '</div>';
         });
         $list.html(html);
     },
