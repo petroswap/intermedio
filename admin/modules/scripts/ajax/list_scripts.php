@@ -4,11 +4,12 @@ require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Response.php';
 
 try {
-    $scriptsDir = __DIR__ . '/../../../scripts/';
+    $scriptsDir = dirname(__DIR__, 2) . '/scripts/';
+    $scriptsDir = realpath($scriptsDir) ?: $scriptsDir;
     $scripts = [];
     
     if (is_dir($scriptsDir)) {
-        $files = glob($scriptsDir . '*.php');
+        $files = glob($scriptsDir . '/*.php');
         
         foreach ($files as $file) {
             $info = pathinfo($file);
