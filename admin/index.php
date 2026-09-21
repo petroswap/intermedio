@@ -14,6 +14,11 @@ require_once __DIR__ . '/core/Validator.php';
 
 // Available modules
 $allModules = [
+    'dashboard' => [
+        'name' => 'Dashboard',
+        'description' => 'Resumen general de la base de datos',
+        'icon' => '📊',
+    ],
     'inspector' => [
         'name' => 'Explorador',
         'description' => 'Navega tablas, datos y esquemas de la base de datos',
@@ -24,13 +29,18 @@ $allModules = [
         'description' => 'Ejecuta consultas SQL personalizadas',
         'icon' => '💻',
     ],
+    'builder' => [
+        'name' => 'Builder',
+        'description' => 'Construye consultas SQL de forma visual',
+        'icon' => '🔧',
+    ],
 ];
 
 // Detect requested module
-$module = $_GET['module'] ?? 'inspector';
+$module = $_GET['module'] ?? 'dashboard';
 
 if (!isset($allModules[$module])) {
-    $module = 'inspector';
+    $module = 'dashboard';
 }
 
 $modules = $allModules;

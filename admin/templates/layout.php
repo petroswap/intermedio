@@ -91,11 +91,17 @@
     <script src="assets/lib/codemirror-sql.min.js"></script>
     <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
     <script src="assets/js/admin.js?v=3.0.0"></script>
+    <?php if ($module === 'dashboard'): ?>
+    <script src="assets/js/dashboard.js"></script>
+    <?php endif; ?>
     <?php if ($module === 'inspector'): ?>
     <script src="assets/js/inspector.js?v=3.0.0"></script>
     <?php endif; ?>
     <?php if ($module === 'sql'): ?>
     <script src="assets/js/sql.js?v=3.0.0"></script>
+    <?php endif; ?>
+    <?php if ($module === 'builder'): ?>
+    <script src="assets/js/builder.js"></script>
     <?php endif; ?>
     <script>
         $(document).on('click', '#theme-toggle', function() {
