@@ -31,6 +31,7 @@
 old/*
 admin/old/*
 admin/data/*
+admin/scripts/*
 code/*
 inspector/*
 ruta_intermedio/*

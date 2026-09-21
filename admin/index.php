@@ -34,6 +34,11 @@ $allModules = [
         'description' => 'Construye consultas SQL de forma visual',
         'icon' => '🔧',
     ],
+    'scripts' => [
+        'name' => 'Scripts',
+        'description' => 'Ejecuta scripts de administración (requiere autenticación)',
+        'icon' => '📜',
+    ],
 ];
 
 // Detect requested module
