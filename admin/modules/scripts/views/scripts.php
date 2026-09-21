@@ -228,4 +228,9 @@ var ScriptsModule = {
             });
     }
 };
+
+// Initialize when view is loaded
+$(document).ready(function() {
+    ScriptsModule.init();
+});
 </script>
