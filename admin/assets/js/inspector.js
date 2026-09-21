@@ -857,9 +857,11 @@ const Inspector = {
         this.showOverlay('Ejecutando consulta SQL...');
 
         var self = this;
+        var startTime = Date.now();
         Admin.post('modules/inspector/ajax/ejecutar_sql.php', { sql: sql })
         .then(function(response) {
             self.hideOverlay();
+            var elapsed = Date.now() - startTime;
             var inner = response.data || {};
             self.data = inner.data || [];
             self.totalRecords = inner.rows || self.data.length;
@@ -868,9 +870,12 @@ const Inspector = {
             $('#sql-generated').text(sql);
             if (self._initialSql === null) self._initialSql = sql;
             $('#btn-reset-sql').toggle(sql !== self._initialSql);
+            Admin.addQueryHistory(sql, true, elapsed);
         })
         .catch(function(error) {
             self.hideOverlay();
+            var elapsed = Date.now() - startTime;
+            Admin.addQueryHistory(sql, false, elapsed);
             Admin.showError($('#results-container'), 'Error SQL: ' + error.message);
         });
     },

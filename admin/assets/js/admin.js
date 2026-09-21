@@ -165,11 +165,17 @@ const Admin = {
             success: function(html) {
                 content.html(html);
                 $(document).trigger('moduleLoaded', module);
+                if (typeof Dashboard !== 'undefined' && module === 'dashboard') {
+                    Dashboard.init();
+                }
                 if (typeof Inspector !== 'undefined' && module === 'inspector') {
                     Inspector.init();
                 }
                 if (typeof SqlModule !== 'undefined' && module === 'sql') {
                     SqlModule.init();
+                }
+                if (typeof Builder !== 'undefined' && module === 'builder') {
+                    Builder.init();
                 }
                 if (typeof Api !== 'undefined' && module === 'api') {
                     Api.init();
@@ -591,6 +597,24 @@ const Admin = {
         const url = new URL(window.location);
         url.searchParams.delete(key);
         window.history.pushState({}, '', url);
+    },
+
+    /**
+     * Agregar entrada al historial de consultas (localStorage)
+     * Usado por Dashboard para mostrar historial reciente
+     */
+    addQueryHistory: function(sql, success, executionTime) {
+        try {
+            var history = JSON.parse(localStorage.getItem('dashboard_query_history') || '[]');
+            history.unshift({
+                sql: sql.substring(0, 500),
+                timestamp: new Date().toISOString(),
+                success: success,
+                execution_time: executionTime || 0
+            });
+            if (history.length > 15) history = history.slice(0, 15);
+            localStorage.setItem('dashboard_query_history', JSON.stringify(history));
+        } catch (e) {}
     }
 };
 
