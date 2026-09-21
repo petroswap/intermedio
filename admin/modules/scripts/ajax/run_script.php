@@ -11,9 +11,9 @@ try {
         Response::error('Script ID requerido');
     }
     
-    $scriptsDir = dirname(__DIR__, 2) . '/scripts/';
-    $scriptsDir = realpath($scriptsDir) ?: $scriptsDir;
-    $scriptFile = $scriptsDir . '/' . basename($scriptId) . '.php';
+    $adminDir = dirname(__DIR__, 2);
+    $scriptsDir = $adminDir . DIRECTORY_SEPARATOR . 'scripts';
+    $scriptFile = $scriptsDir . DIRECTORY_SEPARATOR . basename($scriptId) . '.php';
     
     if (!file_exists($scriptFile)) {
         Response::error('Script no encontrado: ' . $scriptId);
