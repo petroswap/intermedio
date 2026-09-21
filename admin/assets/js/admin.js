@@ -615,6 +615,15 @@ const Admin = {
             if (history.length > 15) history = history.slice(0, 15);
             localStorage.setItem('dashboard_query_history', JSON.stringify(history));
         } catch (e) {}
+    },
+
+    /**
+     * Escapar HTML para prevenir XSS
+     */
+    escapeHtml: function(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 };
 
