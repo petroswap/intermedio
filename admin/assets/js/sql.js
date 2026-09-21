@@ -11,6 +11,20 @@ const SqlModule = {
         $(window).off('resize.sqlmod').on('resize.sqlmod', function() {
             self.syncPanelHeights();
         });
+
+        // Load pending SQL from dashboard history
+        var pendingSql = sessionStorage.getItem('dashboard_pending_sql');
+        if (pendingSql) {
+            sessionStorage.removeItem('dashboard_pending_sql');
+            setTimeout(function() {
+                if (self._cmEditor) {
+                    self._cmEditor.setValue(pendingSql);
+                    self._cmEditor.focus();
+                } else {
+                    $('#sql-editor').val(pendingSql).focus();
+                }
+            }, 100);
+        }
     },
 
     syncPanelHeights: function() {
@@ -137,20 +151,25 @@ const SqlModule = {
 
                 if (response.success && rows.length > 0) {
                     this.renderResults(rows, elapsed, rows.length);
+                    Admin.addQueryHistory(sql, true, elapsed);
                 } else if (response.success) {
                     $container.html('<div class="empty-state"><div class="empty-state-icon">📭</div><p class="empty-state-description">La consulta no devolvió resultados</p></div>');
                     $('#sql-results-count').text('0');
                     $('#sql-results-info').show();
                     $('#sql-execution-time').text(elapsed + 'ms · 0 registros');
+                    Admin.addQueryHistory(sql, true, elapsed);
                 } else {
                     $container.html(`<div class="sql-error-box"><div class="sql-error-title">❌ Error</div><pre class="sql-error-message">${response.msg || 'Error desconocido'}</pre></div>`);
                     $('#sql-results-count').text('0');
                     $('#sql-results-info').hide();
+                    Admin.addQueryHistory(sql, false, elapsed);
                 }
             },
             error: function(xhr, status, error) {
+                const elapsed = Date.now() - startTime;
                 $container.html(`<div class="sql-error-box"><div class="sql-error-title">❌ Error de conexión</div><pre class="sql-error-message">${error || status}</pre></div>`);
                 $('#sql-results-count').text('0');
+                Admin.addQueryHistory(sql, false, elapsed);
             }
         });
     },
