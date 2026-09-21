@@ -63,10 +63,18 @@ intermedio/
 
 | Módulo | Descripción | Archivos |
 |--------|-------------|----------|
+| **Dashboard** | Resumen general: stats, top tablas, historial reciente | `dashboard/` |
 | **Inspector** | Explorar tablas, columnas, datos, metadatos | `inspector/` |
 | **BD Info** | Info general de la base de datos | Integrado en inspector |
 | **Test Conexión** | Verificar conexión a Firebird/MySQL, latencia, versión | `inspector/ajax/test_connection.php` |
 | **Consola SQL** | Editor SQL con CodeMirror, ejemplos, historial, favoritos | `sql/` |
+| **Query Builder** | Construcción visual de consultas SELECT con JOINs | `builder/` |
+
+### Módulos en Planificación
+
+Ver detalle completo en `.opencode/instructions/plan-new-modules.md`
+
+_No hay módulos en planificación por el momento._
 
 ## Funcionalidades Implementadas
 
