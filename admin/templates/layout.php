@@ -103,6 +103,9 @@
     <?php if ($module === 'builder'): ?>
     <script src="assets/js/builder.js"></script>
     <?php endif; ?>
+    <?php if ($module === 'scripts'): ?>
+    <script src="assets/js/scripts.js"></script>
+    <?php endif; ?>
     <script>
         $(document).on('click', '#theme-toggle', function() {
             var current = document.documentElement.getAttribute('data-theme');

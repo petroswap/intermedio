@@ -177,6 +177,9 @@ const Admin = {
                 if (typeof Builder !== 'undefined' && module === 'builder') {
                     Builder.init();
                 }
+                if (typeof ScriptsModule !== 'undefined' && module === 'scripts') {
+                    ScriptsModule.init();
+                }
                 if (typeof Api !== 'undefined' && module === 'api') {
                     Api.init();
                 }
