@@ -15,7 +15,7 @@ try {
             foreach ($files as $file) {
                 $filename = basename($file);
                 
-                if ($filename === 'index.php' || $filename === '.htaccess') {
+                if ($filename === 'index.php' || $filename === 'script_guard.php') {
                     continue;
                 }
                 
