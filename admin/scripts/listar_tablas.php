@@ -13,10 +13,10 @@ try {
     $db = Database::getInstance(DB_CONFIG);
     $pdo = $db->getConnection();
     
-    $sql = "SELECT RDB$RELATION_NAME as tabla
+    $sql = 'SELECT RDB$RELATION_NAME as tabla
             FROM RDB$RELATIONS
             WHERE RDB$SYSTEM_FLAG = 0
-            ORDER BY RDB$RELATION_NAME";
+            ORDER BY RDB$RELATION_NAME';
     
     $res = $pdo->query($sql);
     $tablas = [];

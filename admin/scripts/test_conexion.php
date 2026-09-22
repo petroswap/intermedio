@@ -28,18 +28,18 @@ try {
     echo "Charset: " . DB_CONFIG['charset'] . "\n";
     
     // Versión
-    $res = $pdo->query("SELECT RDB$GET_CONTEXT('SYSTEM', 'ENGINE_VERSION') as version FROM RDB$DATABASE");
+    $res = $pdo->query('SELECT RDB$GET_CONTEXT(\'SYSTEM\', \'ENGINE_VERSION\') as version FROM RDB$DATABASE');
     $row = $res->fetch(PDO::FETCH_ASSOC);
     echo "Versión Firebird: " . trim($row['VERSION']) . "\n";
     
     // Latencia
     $start = microtime(true);
-    $pdo->query("SELECT 1 FROM RDB$DATABASE");
+    $pdo->query('SELECT 1 FROM RDB$DATABASE');
     $latency = round((microtime(true) - $start) * 1000, 2);
     echo "Latencia: " . $latency . "ms\n";
     
     // Total tablas
-    $res = $pdo->query("SELECT COUNT(*) as total FROM RDB$RELATIONS WHERE RDB$SYSTEM_FLAG = 0");
+    $res = $pdo->query('SELECT COUNT(*) as total FROM RDB$RELATIONS WHERE RDB$SYSTEM_FLAG = 0');
     $row = $res->fetch(PDO::FETCH_ASSOC);
     echo "Total tablas: " . $row['TOTAL'] . "\n";
     
