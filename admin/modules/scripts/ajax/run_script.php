@@ -23,14 +23,19 @@ try {
         Response::error('Script no encontrado: ' . $scriptId);
     }
     
+    $_SESSION['scripts_running'] = true;
+    
     ob_start();
     include $scriptFile;
     $output = ob_get_clean();
+    
+    $_SESSION['scripts_running'] = false;
     
     Response::success([
         'script' => $scriptId,
         'output' => $output
     ]);
 } catch (Exception $e) {
+    $_SESSION['scripts_running'] = false;
     Response::error('Error al ejecutar script: ' . $e->getMessage());
 }

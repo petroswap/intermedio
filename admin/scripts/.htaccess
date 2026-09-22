@@ -1,1 +1,12 @@
+# Deny direct access to PHP files
+# Scripts can only be executed through run_script.php
+<FilesMatch "\.php$">
+    Require all denied
+</FilesMatch>
+
+# Allow the protection include file
+<Files "script_guard.php">
+    Require all granted
+</Files>
+
 Options -Indexes
