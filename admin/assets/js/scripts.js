@@ -149,7 +149,7 @@ var ScriptsModule = {
         }
         
         $('#script-result').html('<div class="loading"><div class="spinner"></div><p>Ejecutando...</p></div>');
-        $('#btn-script-confirm').prop('disabled', true);
+        $('#btn-script-confirm').prop('disabled', true).text('Ejecutando...');
         
         Admin.post('modules/scripts/ajax/run_script.php', { script_id: scriptId })
             .then(function(response) {
