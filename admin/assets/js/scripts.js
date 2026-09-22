@@ -98,6 +98,7 @@ var ScriptsModule = {
         $('#script-current-name').text(scriptName);
         $('#script-placeholder').hide();
         $('#script-result').empty().hide();
+        $('#btn-script-confirm').prop('disabled', false).text('▶ Ejecutar Script');
         
         if (params && params.length > 0) {
             this.renderParamsForm(params);
