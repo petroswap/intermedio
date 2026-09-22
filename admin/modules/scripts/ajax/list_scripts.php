@@ -4,15 +4,21 @@ require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Response.php';
 
 try {
-    $adminDir = dirname(__DIR__, 2);
-    $scriptsDir = $adminDir . DIRECTORY_SEPARATOR . 'scripts';
+    $adminDir = dirname(dirname(dirname(__DIR__)));
+    $scriptsDir = $adminDir . '/scripts';
     $scripts = [];
     
     if (is_dir($scriptsDir)) {
-        $files = glob($scriptsDir . DIRECTORY_SEPARATOR . '*.php');
+        $files = glob($scriptsDir . '/*.php');
         
         if ($files) {
             foreach ($files as $file) {
+                $filename = basename($file);
+                
+                if ($filename === 'index.php' || $filename === '.htaccess') {
+                    continue;
+                }
+                
                 $info = pathinfo($file);
                 $scriptId = $info['filename'];
                 
@@ -20,7 +26,7 @@ try {
                     'id' => $scriptId,
                     'name' => ucwords(str_replace('_', ' ', $scriptId)),
                     'description' => 'Script personalizado',
-                    'file' => basename($file)
+                    'file' => $filename
                 ];
             }
         }

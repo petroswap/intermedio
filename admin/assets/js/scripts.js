@@ -41,6 +41,12 @@ var ScriptsModule = {
         $(document).on('keypress.scriptsmod', '#scripts-password', function(e) {
             if (e.which === 13) self.verifyAndExecute();
         });
+        
+        $(document).on('click.scriptsmod', '#btn-copy-output', function() {
+            var text = $('#script-output-text').val();
+            Admin.copyToClipboard(text);
+            Admin.toastSuccess('Copiado al portapapeles');
+        });
     },
     
     loadScripts: function() {
@@ -155,9 +161,16 @@ var ScriptsModule = {
             .then(function(response) {
                 if (response.success) {
                     var output = response.data.output || 'Script ejecutado correctamente';
-                    $('#script-result').html('<div class="alert alert-success"><strong>✅ Ejecutado</strong><pre style="margin-top: 0.5rem; white-space: pre-wrap;">' + Admin.escapeHtml(output) + '</pre></div>');
+                    var html = '<div class="alert alert-success" style="margin-bottom: 0.5rem;"><strong>✅ Ejecutado correctamente</strong></div>';
+                    html += '<textarea id="script-output-text" class="form-input" rows="12" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary);">' + Admin.escapeHtml(output) + '</textarea>';
+                    html += '<div style="margin-top: 0.5rem;">';
+                    html += '<button class="btn btn-sm btn-outline" id="btn-copy-output">📋 Copiar resultado</button>';
+                    html += '</div>';
+                    $('#script-result').html(html);
                 } else {
-                    $('#script-result').html('<div class="alert alert-danger"><strong>❌ Error</strong><pre style="margin-top: 0.5rem; white-space: pre-wrap;">' + Admin.escapeHtml(response.msg || 'Error desconocido') + '</pre></div>');
+                    var html = '<div class="alert alert-danger" style="margin-bottom: 0.5rem;"><strong>❌ Error</strong></div>';
+                    html += '<textarea class="form-input" rows="6" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary);">' + Admin.escapeHtml(response.msg || 'Error desconocido') + '</textarea>';
+                    $('#script-result').html(html);
                 }
             })
             .catch(function(error) {
