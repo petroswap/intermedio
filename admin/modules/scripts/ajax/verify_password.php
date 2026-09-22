@@ -11,10 +11,10 @@ try {
         Response::error('Contraseña requerida');
     }
     
-    $storedPassword = defined('SCRIPTS_PASSWORD') ? SCRIPTS_PASSWORD : '';
+    $storedPassword = SCRIPTS_PASSWORD;
     
     if (empty($storedPassword)) {
-        Response::error('Contraseña no configurada en el servidor');
+        Response::error('SCRIPTS_PASSWORD no configurado en .env');
     }
     
     if ($password === $storedPassword) {
@@ -22,8 +22,8 @@ try {
         $_SESSION['scripts_auth_time'] = time();
         Response::success(['authenticated' => true], 'Acceso concedido');
     } else {
-        Response::error('Contraseña incorrecta. Inténtalo de nuevo.');
+        Response::error('Contraseña incorrecta');
     }
 } catch (Exception $e) {
-    Response::error('Error de verificación: ' . $e->getMessage());
+    Response::error('Error: ' . $e->getMessage());
 }
