@@ -51,8 +51,15 @@
                     <div id="script-placeholder" class="empty-state">
                         <div class="empty-state-icon">▶️</div>
                         <p class="empty-state-title">Sin ejecutar</p>
-                        <p class="empty-state-description">Selecciona un script de la izquierda y haz clic en Ejecutar</p>
+                        <p class="empty-state-description">Selecciona un script de la izquierda</p>
                     </div>
+                    
+                    <!-- Parameters Form -->
+                    <div id="script-params" style="display: none; margin-bottom: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem; font-size: 0.9rem;">Parámetros</h4>
+                        <div id="script-params-fields"></div>
+                    </div>
+                    
                     <div id="script-result" style="display: none;"></div>
                 </div>
                 <div class="card-footer" id="script-footer" style="display: none;">
@@ -119,6 +126,20 @@
     margin: 0;
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+.scripts-param-row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.scripts-param-row label {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+.scripts-param-row .form-input {
+    font-size: 0.85rem;
 }
 @media (max-width: 768px) {
     .scripts-layout {

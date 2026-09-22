@@ -10,6 +10,7 @@ try {
     }
     
     $scriptId = $_POST['script_id'] ?? '';
+    $params = $_POST['params'] ?? [];
     
     if (empty($scriptId)) {
         Response::error('Script ID requerido');
@@ -21,6 +22,11 @@ try {
     
     if (!file_exists($scriptFile)) {
         Response::error('Script no encontrado: ' . $scriptId);
+    }
+    
+    // Pass params to script via $_POST
+    foreach ($params as $key => $value) {
+        $_POST[$key] = $value;
     }
     
     $_SESSION['scripts_running'] = true;

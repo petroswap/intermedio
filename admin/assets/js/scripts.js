@@ -1,5 +1,6 @@
 var ScriptsModule = {
     currentScript: null,
+    scriptParams: {},
     
     init: function() {
         this.bindEvents();
@@ -19,9 +20,10 @@ var ScriptsModule = {
             var $item = $(this);
             var scriptId = $item.data('script');
             var scriptName = $item.data('name');
+            var scriptParams = $item.data('params');
             $('.scripts-script-item').removeClass('active');
             $item.addClass('active');
-            self.selectScript(scriptId, scriptName);
+            self.selectScript(scriptId, scriptName, scriptParams);
         });
         
         $(document).on('click.scriptsmod', '#btn-script-confirm', function() {
@@ -77,7 +79,8 @@ var ScriptsModule = {
         
         var html = '';
         scripts.forEach(function(script) {
-            html += '<div class="scripts-script-item" data-script="' + Admin.escapeHtml(script.id) + '" data-name="' + Admin.escapeHtml(script.name) + '">';
+            var paramsJson = JSON.stringify(script.params || []);
+            html += '<div class="scripts-script-item" data-script="' + Admin.escapeHtml(script.id) + '" data-name="' + Admin.escapeHtml(script.name) + '" data-params=\'' + paramsJson + '\'>';
             html += '  <div class="scripts-script-info">';
             html += '    <h4>' + Admin.escapeHtml(script.name) + '</h4>';
             html += '    <p>' + Admin.escapeHtml(script.description || '') + '</p>';
@@ -89,12 +92,59 @@ var ScriptsModule = {
         $list.html(html);
     },
     
-    selectScript: function(scriptId, scriptName) {
+    selectScript: function(scriptId, scriptName, params) {
         this.currentScript = scriptId;
+        this.scriptParams = {};
         $('#script-current-name').text(scriptName);
         $('#script-placeholder').hide();
-        $('#script-result').empty().show();
+        $('#script-result').empty().hide();
+        
+        if (params && params.length > 0) {
+            this.renderParamsForm(params);
+            $('#script-params').show();
+        } else {
+            $('#script-params').hide();
+        }
+        
         $('#script-footer').show();
+    },
+    
+    renderParamsForm: function(params) {
+        var $fields = $('#script-params-fields');
+        $fields.empty();
+        
+        var html = '';
+        params.forEach(function(param) {
+            html += '<div class="scripts-param-row">';
+            html += '  <label for="param-' + param.name + '">' + Admin.escapeHtml(param.label || param.name) + '</label>';
+            
+            if (param.type === 'textarea') {
+                html += '  <textarea id="param-' + param.name + '" class="form-input" rows="3" placeholder="' + Admin.escapeHtml(param.placeholder || '') + '" data-param="' + param.name + '">' + Admin.escapeHtml(param.default || '') + '</textarea>';
+            } else if (param.type === 'select') {
+                html += '  <select id="param-' + param.name + '" class="form-input" data-param="' + param.name + '">';
+                (param.options || []).forEach(function(opt) {
+                    var val = typeof opt === 'object' ? opt.value : opt;
+                    var label = typeof opt === 'object' ? opt.label : opt;
+                    html += '<option value="' + Admin.escapeHtml(val) + '">' + Admin.escapeHtml(label) + '</option>';
+                });
+                html += '  </select>';
+            } else {
+                html += '  <input type="' + (param.type || 'text') + '" id="param-' + param.name + '" class="form-input" placeholder="' + Admin.escapeHtml(param.placeholder || '') + '" value="' + Admin.escapeHtml(param.default || '') + '" data-param="' + param.name + '">';
+            }
+            
+            html += '</div>';
+        });
+        
+        $fields.html(html);
+    },
+    
+    getParams: function() {
+        var params = {};
+        $('#script-params-fields [data-param]').each(function() {
+            var $el = $(this);
+            params[$el.data('param')] = $el.val();
+        });
+        return params;
     },
     
     showPasswordModal: function() {
@@ -148,10 +198,14 @@ var ScriptsModule = {
             return;
         }
         
-        $('#script-result').html('<div class="loading"><div class="spinner"></div><p>Ejecutando...</p></div>');
+        var params = this.getParams();
+        
+        $('#script-result').html('<div class="loading"><div class="spinner"></div><p>Ejecutando...</p></div>').show();
         $('#btn-script-confirm').prop('disabled', true).text('Ejecutando...');
         
-        Admin.post('modules/scripts/ajax/run_script.php', { script_id: scriptId })
+        var data = { script_id: scriptId, params: params };
+        
+        Admin.post('modules/scripts/ajax/run_script.php', data)
             .then(function(response) {
                 if (response.success) {
                     var output = response.data.output || 'Ejecutado correctamente';
@@ -172,7 +226,7 @@ var ScriptsModule = {
                 $('#script-result').html('<div class="alert alert-danger"><strong>❌ Error de conexión</strong></div>');
             })
             .always(function() {
-                $('#btn-script-confirm').prop('disabled', false);
+                $('#btn-script-confirm').prop('disabled', false).text('▶ Ejecutar Script');
             });
     }
 };
