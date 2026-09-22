@@ -1,7 +1,6 @@
 var ScriptsModule = (function() {
     var scripts = [];
     var currentScript = null;
-    var history = [];
     var _eventsBound = false;
 
     function init() {
@@ -9,7 +8,6 @@ var ScriptsModule = (function() {
         _eventsBound = true;
         bindEvents();
         loadScripts();
-        loadHistory();
     }
 
     function bindEvents() {
@@ -23,14 +21,6 @@ var ScriptsModule = (function() {
 
         $(document).on('click.scriptsmod', '#btn-scripts-refresh', function() {
             loadScripts();
-        });
-
-        $(document).on('click.scriptsmod', '.scripts-tab', function() {
-            var tab = $(this).data('tab');
-            $('.scripts-tab').removeClass('active');
-            $(this).addClass('active');
-            $('.scripts-tab-content').hide();
-            $('#tab-' + tab).show();
         });
 
         $(document).on('click.scriptsmod', '#btn-script-confirm', function() {
@@ -55,32 +45,6 @@ var ScriptsModule = (function() {
             if (e.key === 'Escape') {
                 $('#scripts-password-modal').hide();
             }
-        });
-
-        $(document).on('click.scriptsmod', '.scripts-history-item', function() {
-            var idx = $(this).data('index');
-            var item = history[idx];
-            if (item) {
-                $('#script-current-name').text(item.script);
-                $('#response-status').text(item.success ? '200' : '500');
-                $('#response-status').attr('class', 'badge ' + (item.success ? 'badge-success' : 'badge-danger'));
-                $('#response-time').text(item.elapsed + 'ms');
-                $('#response-meta').show();
-                $('#response-footer').show();
-                $('#response-panel').show();
-                
-                if (item.is_json) {
-                    renderJsonTable(item.json_data);
-                } else {
-                    renderRawOutput(item.output);
-                }
-            }
-        });
-
-        $(document).on('click.scriptsmod', '#btn-history-clear', function() {
-            history = [];
-            localStorage.removeItem('scripts_history');
-            renderHistory();
         });
 
         $(document).on('click.scriptsmod', '#btn-copy-output', function() {
@@ -137,11 +101,7 @@ var ScriptsModule = (function() {
         var html = '';
         scripts.forEach(function(script) {
             html += '<div class="scripts-script-item" data-id="' + script.id + '">';
-            html += '  <div class="scripts-script-info">';
-            html += '    <h4>' + Admin.escapeHtml(script.name) + '</h4>';
-            html += '    <p>' + Admin.escapeHtml(script.description || 'Sin descripción') + '</p>';
-            html += '  </div>';
-            html += '  <span class="badge badge-info">' + script.params.length + ' params</span>';
+            html += '  <h4>' + Admin.escapeHtml(script.name) + '</h4>';
             html += '</div>';
         });
         
@@ -159,27 +119,29 @@ var ScriptsModule = (function() {
         $('.scripts-script-item[data-id="' + script.id + '"]').addClass('active');
         
         $('#script-placeholder').hide();
-        $('#script-current-name').text(script.name);
+        $('#script-content').show();
+        
+        $('#script-name').text(script.name);
+        $('#script-description').text(script.description || 'Sin descripción');
         $('#script-method-badge').text(script.method || 'POST');
-        $('#script-footer').show();
-        $('#response-panel').hide();
         
         renderParamsForm(script.params);
-        updateRawBody();
+        $('#response-panel').hide();
+        $('#response-footer').hide();
+        $('#response-meta').hide();
     }
 
     function renderParamsForm(params) {
         var html = '';
         var $fields = $('#script-params-fields');
-        var $noParams = $('#script-no-params');
+        var $card = $('#script-params-card');
         
         if (!params || params.length === 0) {
-            $fields.html('');
-            $noParams.show();
+            $card.hide();
             return;
         }
         
-        $noParams.hide();
+        $card.show();
         
         params.forEach(function(param) {
             html += '<div class="scripts-param-row">';
@@ -190,16 +152,7 @@ var ScriptsModule = (function() {
             var value = param.default || '';
             
             if (param.type === 'textarea') {
-                html += '  <textarea class="form-input" data-param="' + param.name + '" placeholder="' + Admin.escapeHtml(param.placeholder || '') + '" rows="3" style="font-family: monospace; font-size: 0.85rem;">' + Admin.escapeHtml(value) + '</textarea>';
-            } else if (param.type === 'select' && param.options) {
-                html += '  <select class="form-input" data-param="' + param.name + '">';
-                param.options.forEach(function(opt) {
-                    var optVal = typeof opt === 'object' ? opt.value : opt;
-                    var optLabel = typeof opt === 'object' ? opt.label : opt;
-                    var selected = optVal == value ? ' selected' : '';
-                    html += '    <option value="' + Admin.escapeHtml(optVal) + '"' + selected + '>' + Admin.escapeHtml(optLabel) + '</option>';
-                });
-                html += '  </select>';
+                html += '  <textarea class="form-input" data-param="' + param.name + '" placeholder="' + Admin.escapeHtml(param.placeholder || '') + '" rows="3">' + Admin.escapeHtml(value) + '</textarea>';
             } else {
                 html += '  <input type="' + (param.type || 'text') + '" class="form-input" data-param="' + param.name + '" placeholder="' + Admin.escapeHtml(param.placeholder || '') + '" value="' + Admin.escapeHtml(value) + '">';
             }
@@ -219,16 +172,6 @@ var ScriptsModule = (function() {
         });
         return params;
     }
-
-    function updateRawBody() {
-        var params = getParams();
-        var raw = JSON.stringify(params, null, 2);
-        $('#script-raw-body').val(raw);
-    }
-
-    $(document).on('input.scriptsmod', '#script-params-fields input, #script-params-fields textarea, #script-params-fields select', function() {
-        updateRawBody();
-    });
 
     function showPasswordModal() {
         if (!currentScript) return;
@@ -288,48 +231,43 @@ var ScriptsModule = (function() {
         $('#response-footer').hide();
         $('#script-result').html('<div class="loading"><div class="spinner"></div><p>Ejecutando...</p></div>');
         
-        var postData = {
+        Admin.post('modules/scripts/ajax/run_script.php', {
             script_id: currentScript.id,
             params: params
-        };
-        
-        Admin.post('modules/scripts/ajax/run_script.php', postData)
-            .then(function(response) {
-                var data = response.data;
-                
-                $('#response-status').text('200');
-                $('#response-status').attr('class', 'badge badge-success');
-                $('#response-time').text(data.elapsed + 'ms');
-                $('#response-size').text(formatBytes(data.size));
-                $('#response-meta').show();
-                $('#response-footer').show();
-                
-                if (data.is_json && data.json_data) {
-                    window._lastJsonData = data.json_data;
-                    renderJsonTable(data.json_data);
-                } else {
-                    window._lastJsonData = null;
-                    renderRawOutput(data.output);
-                }
-                
-                addToHistory(currentScript.name, true, data.elapsed, data.output, data.is_json, data.json_data);
-            })
-            .catch(function(error) {
-                $('#response-status').text('500');
-                $('#response-status').attr('class', 'badge badge-danger');
-                $('#response-time').text('');
-                $('#response-size').text('');
-                $('#response-meta').show();
-                
-                var msg = error.message || 'Error desconocido';
-                $('#script-result').html('<div class="alert alert-danger">' + Admin.escapeHtml(msg) + '</div>');
-                
-                addToHistory(currentScript.name, false, 0, msg, false, null);
-                Admin.logError('executeScript', error);
-            })
-            .finally(function() {
-                $('#btn-script-confirm').prop('disabled', false).html('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ejecutar con contraseña');
-            });
+        })
+        .then(function(response) {
+            var data = response.data;
+            
+            $('#response-status').text('200');
+            $('#response-status').attr('class', 'badge badge-success');
+            $('#response-time').text(data.elapsed + 'ms');
+            $('#response-size').text(formatBytes(data.size));
+            $('#response-meta').show();
+            $('#response-footer').show();
+            
+            if (data.is_json && data.json_data) {
+                window._lastJsonData = data.json_data;
+                renderJsonTable(data.json_data);
+            } else {
+                window._lastJsonData = null;
+                renderRawOutput(data.output);
+            }
+        })
+        .catch(function(error) {
+            $('#response-status').text('500');
+            $('#response-status').attr('class', 'badge badge-danger');
+            $('#response-time').text('');
+            $('#response-size').text('');
+            $('#response-meta').show();
+            $('#response-footer').show();
+            
+            var msg = error.message || 'Error desconocido';
+            $('#script-result').html('<div class="alert alert-danger">' + Admin.escapeHtml(msg) + '</div>');
+            Admin.logError('executeScript', error);
+        })
+        .finally(function() {
+            $('#btn-script-confirm').prop('disabled', false).html('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Ejecutar con contraseña');
+        });
     }
 
     function renderJsonTable(data) {
@@ -360,7 +298,7 @@ var ScriptsModule = (function() {
         html += '</tbody></table></div>';
         
         if (data.length > 500) {
-            html += '<p class="text-muted" style="font-size: 0.8rem; margin-top: 0.5rem;">Mostrando 500 de ' + data.length + ' registros. Exporta para ver todos.</p>';
+            html += '<p class="text-muted" style="font-size: 0.8rem; margin-top: 0.5rem;">Mostrando 500 de ' + data.length + ' registros.</p>';
         }
         
         $('#script-result').html(html);
@@ -369,54 +307,6 @@ var ScriptsModule = (function() {
     function renderRawOutput(output) {
         var html = '<pre style="white-space: pre-wrap; font-size: 0.8rem; margin: 0; padding: 0.5rem; background: var(--surface-secondary); border-radius: 4px; overflow-x: auto;">' + Admin.escapeHtml(output) + '</pre>';
         $('#script-result').html(html);
-    }
-
-    function addToHistory(name, success, elapsed, output, isJson, jsonData) {
-        var entry = {
-            script: name,
-            success: success,
-            elapsed: elapsed,
-            output: output.substring(0, 1000),
-            is_json: isJson,
-            json_data: jsonData,
-            time: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-        };
-        
-        history.unshift(entry);
-        if (history.length > 20) history.pop();
-        
-        localStorage.setItem('scripts_history', JSON.stringify(history));
-        renderHistory();
-    }
-
-    function loadHistory() {
-        try {
-            var stored = localStorage.getItem('scripts_history');
-            history = stored ? JSON.parse(stored) : [];
-        } catch(e) {
-            history = [];
-        }
-        renderHistory();
-    }
-
-    function renderHistory() {
-        if (!history.length) {
-            $('#scripts-history').html('<p class="text-muted" style="font-size: 0.8rem; padding: 0.5rem;">Sin ejecuciones</p>');
-            return;
-        }
-        
-        var html = '';
-        history.forEach(function(item, idx) {
-            var icon = item.success ? '✅' : '❌';
-            html += '<div class="scripts-history-item" data-index="' + idx + '">';
-            html += '  <span class="history-status">' + icon + '</span>';
-            html += '  <span class="history-name">' + Admin.escapeHtml(item.script) + '</span>';
-            html += '  <span class="history-time">' + item.elapsed + 'ms</span>';
-            html += '  <span class="history-time">' + item.time + '</span>';
-            html += '</div>';
-        });
-        
-        $('#scripts-history').html(html);
     }
 
     function formatBytes(bytes) {
