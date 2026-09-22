@@ -31,15 +31,34 @@ try {
     
     $_SESSION['scripts_running'] = true;
     
+    $startTime = microtime(true);
+    
     ob_start();
     include $scriptFile;
     $output = ob_get_clean();
     
+    $elapsed = round((microtime(true) - $startTime) * 1000, 2);
+    
     $_SESSION['scripts_running'] = false;
+    
+    // Detect if output is JSON
+    $isJson = false;
+    $jsonData = null;
+    $trimmedOutput = trim($output);
+    if ($trimmedOutput[0] === '{' || $trimmedOutput[0] === '[') {
+        $jsonData = json_decode($trimmedOutput, true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $isJson = true;
+        }
+    }
     
     Response::success([
         'script' => $scriptId,
-        'output' => $output
+        'output' => $output,
+        'elapsed' => $elapsed,
+        'is_json' => $isJson,
+        'json_data' => $jsonData,
+        'size' => strlen($output)
     ]);
 } catch (Exception $e) {
     $_SESSION['scripts_running'] = false;

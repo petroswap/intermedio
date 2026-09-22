@@ -1,13 +1,18 @@
 <?php
 /**
- * Script: Obtener Ventas Históricas
- * Devuelve la suma de litros vendidos por día y estación
- * 
- * Parámetros POST:
- *   productos = "1,2,5,7"  (IDs separados por coma)
- *   desde     = "2026-08-04 00:00:00"
- *   hasta     = "2026-09-21 23:59:59"
+ * @name Obtener Ventas Históricas
+ * @description Suma de litros vendidos por día y estación
+ * @method POST
+ * @output JSON
  */
+
+$SCRIPT_CONFIG = [
+    'params' => [
+        ['name' => 'productos', 'label' => 'Productos', 'type' => 'text', 'required' => true, 'placeholder' => '1,2,5', 'default' => '1'],
+        ['name' => 'desde', 'label' => 'Desde', 'type' => 'text', 'required' => true, 'placeholder' => '2026-01-01 00:00:00', 'default' => '2026-01-01 00:00:00'],
+        ['name' => 'hasta', 'label' => 'Hasta', 'type' => 'text', 'required' => true, 'placeholder' => '2026-12-31 23:59:59', 'default' => date('Y-m-d') . ' 23:59:59']
+    ]
+];
 
 require_once __DIR__ . '/script_guard.php';
 

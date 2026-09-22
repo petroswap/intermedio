@@ -8,64 +8,86 @@ try {
     $scriptsDir = $adminDir . '/scripts';
     $scripts = [];
     
-    $scriptsConfig = [
-        'listar_tablas' => [
-            'name' => 'Listar Tablas',
-            'description' => 'Muestra todas las tablas de Firebird',
-            'params' => []
-        ],
-        'test_conexion' => [
-            'name' => 'Test Conexión',
-            'description' => 'Verifica conexión y muestra info del servidor',
-            'params' => []
-        ],
-        'obtener_ventas_historicas' => [
-            'name' => 'Obtener Ventas Históricas',
-            'description' => 'Suma de litros por día y estación',
-            'params' => [
-                ['name' => 'productos', 'label' => 'Productos', 'type' => 'text', 'placeholder' => '1,2,5', 'default' => '1'],
-                ['name' => 'desde', 'label' => 'Desde', 'type' => 'text', 'placeholder' => '2026-01-01 00:00:00', 'default' => '2026-01-01 00:00:00'],
-                ['name' => 'hasta', 'label' => 'Hasta', 'type' => 'text', 'placeholder' => '2026-12-31 23:59:59', 'default' => date('Y-m-d') . ' 23:59:59']
-            ]
-        ],
-        'test_ventas_historicas' => [
-            'name' => 'Test Ventas Históricas',
-            'description' => 'Prueba con datos de ejemplo',
-            'params' => []
-        ]
-    ];
-    
     if (is_dir($scriptsDir)) {
         $files = glob($scriptsDir . '/*.php');
         
         if ($files) {
             foreach ($files as $file) {
                 $filename = basename($file);
-                $info = pathinfo($file);
-                $scriptId = $info['filename'];
                 
                 if ($filename === 'script_guard.php') {
                     continue;
                 }
                 
-                $config = $scriptsConfig[$scriptId] ?? [
-                    'name' => ucwords(str_replace('_', ' ', $scriptId)),
-                    'description' => 'Script personalizado',
-                    'params' => []
-                ];
+                $info = pathinfo($file);
+                $scriptId = $info['filename'];
+                
+                // Read script metadata from docblock and $SCRIPT_CONFIG
+                $meta = readScriptMeta($file);
                 
                 $scripts[] = [
                     'id' => $scriptId,
-                    'name' => $config['name'],
-                    'description' => $config['description'],
-                    'params' => $config['params'],
+                    'name' => $meta['name'] ?? ucwords(str_replace('_', ' ', $scriptId)),
+                    'description' => $meta['description'] ?? '',
+                    'method' => $meta['method'] ?? 'POST',
+                    'output' => $meta['output'] ?? 'text',
+                    'params' => $meta['params'] ?? [],
                     'file' => $filename
                 ];
             }
         }
     }
     
+    usort($scripts, function($a, $b) {
+        return strcmp($a['name'], $b['name']);
+    });
+    
     Response::success($scripts);
 } catch (Exception $e) {
     Response::error('Error al listar scripts: ' . $e->getMessage());
+}
+
+function readScriptMeta($file) {
+    $content = file_get_contents($file);
+    $meta = [];
+    
+    // Read docblock annotations
+    if (preg_match_all('/@(\w+)\s+(.+)/', $content, $matches)) {
+        for ($i = 0; $i < count($matches[1]); $i++) {
+            $key = strtolower($matches[1][$i]);
+            $meta[$key] = trim($matches[2][$i]);
+        }
+    }
+    
+    // Read $SCRIPT_CONFIG (evaluate the file safely)
+    $config = extractScriptConfig($file);
+    if ($config) {
+        $meta['params'] = $config['params'] ?? [];
+    }
+    
+    return $meta;
+}
+
+function extractScriptConfig($file) {
+    $content = file_get_contents($file);
+    
+    // Find $SCRIPT_CONFIG = [...]; block
+    if (preg_match('/\$SCRIPT_CONFIG\s*=\s*(\[.*?\]);/s', $content, $match)) {
+        // Safe evaluation - only allow array structure
+        $configStr = $match[1];
+        
+        // Convert PHP array syntax to JSON-like for parsing
+        // Replace => with :, remove quotes around keys
+        $configStr = preg_replace("/'([^']*)'/", '"$1"', $configStr);
+        
+        $jsonStr = preg_replace('/(\w+)\s*=>/', '"$1":', $configStr);
+        
+        $config = json_decode($jsonStr, true);
+        
+        if ($config && is_array($config)) {
+            return $config;
+        }
+    }
+    
+    return null;
 }

@@ -1,8 +1,13 @@
 <?php
 /**
- * Script: Listar tablas de la base de datos
- * Muestra todas las tablas del sistema Firebird
+ * @name Listar Tablas
+ * @description Lista todas las tablas de la base de datos Firebird
+ * @method POST
  */
+
+$SCRIPT_CONFIG = [
+    'params' => []
+];
 
 require_once __DIR__ . '/script_guard.php';
 
