@@ -109,6 +109,7 @@ var ScriptsModule = {
         $('#scripts-password-modal').show();
         $('#scripts-password').val('').focus();
         $('#scripts-password-error').hide();
+        $('#scripts-password-submit').prop('disabled', false).text('Ejecutar');
     },
     
     hidePasswordModal: function() {
@@ -127,6 +128,7 @@ var ScriptsModule = {
         }
         
         $('#scripts-password-submit').prop('disabled', true).text('Verificando...');
+        $('#scripts-password-error').hide();
         
         Admin.post('modules/scripts/ajax/verify_password.php', { password: password })
             .then(function(response) {
@@ -135,12 +137,12 @@ var ScriptsModule = {
                     self.executeScript();
                 } else {
                     $('#scripts-password-error').text(response.msg || 'Contraseña incorrecta').show();
+                    $('#scripts-password').val('').focus();
+                    $('#scripts-password-submit').prop('disabled', false).text('Ejecutar');
                 }
             })
             .catch(function(error) {
                 $('#scripts-password-error').text('Error de verificación').show();
-            })
-            .always(function() {
                 $('#scripts-password-submit').prop('disabled', false).text('Ejecutar');
             });
     },
@@ -168,8 +170,9 @@ var ScriptsModule = {
                     html += '</div>';
                     $('#script-result').html(html);
                 } else {
+                    var errMsg = response.msg || 'Error desconocido';
                     var html = '<div class="alert alert-danger" style="margin-bottom: 0.5rem;"><strong>❌ Error</strong></div>';
-                    html += '<textarea class="form-input" rows="6" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary);">' + Admin.escapeHtml(response.msg || 'Error desconocido') + '</textarea>';
+                    html += '<textarea class="form-input" rows="6" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary);">' + Admin.escapeHtml(errMsg) + '</textarea>';
                     $('#script-result').html(html);
                 }
             })

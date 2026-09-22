@@ -1,11 +1,15 @@
 <?php
+session_start();
 header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Response.php';
 
 try {
+    if (empty($_SESSION['scripts_auth'])) {
+        Response::error('No autenticado. Introduce la contraseña primero.', 401);
+    }
+    
     $scriptId = $_POST['script_id'] ?? '';
-    $params = $_POST['params'] ?? [];
     
     if (empty($scriptId)) {
         Response::error('Script ID requerido');
