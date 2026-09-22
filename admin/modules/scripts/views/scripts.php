@@ -110,7 +110,7 @@
 <style>
 .scripts-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 2fr;
     gap: 1rem;
     min-height: 600px;
 }

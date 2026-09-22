@@ -1,8 +1,9 @@
 <?php
 /**
  * @name Listar Tablas
- * @description Lista todas las tablas de la base de datos Firebird
+ * @description Devuelve el listado completo de tablas de usuario definidas en la base de datos Firebird, excluyendo las tablas internas del motor (las que tienen RDB$SYSTEM_FLAG = 0). Para cada tabla se muestra el nombre según aparece en RDB$RELATIONS, ordenado alfabéticamente. Al final se indica el número total de tablas encontradas. Sin parámetros: es una consulta directa de metadatos del sistema, útil para conocer la estructura general de la base de datos y validar que la conexión devuelve las tablas esperadas.
  * @method POST
+ * @output TEXT
  */
 
 $SCRIPT_CONFIG = [

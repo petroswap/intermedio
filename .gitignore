@@ -32,6 +32,12 @@ old/*
 admin/old/*
 admin/data/*
 admin/scripts/*
+!admin/scripts/.htaccess
+!admin/scripts/script_guard.php
+!admin/scripts/listar_tablas.php
+!admin/scripts/test_conexion.php
+!admin/scripts/obtener_ventas_historicas.php
+!admin/scripts/test_ventas_historicas.php
 code/*
 inspector/*
 ruta_intermedio/*

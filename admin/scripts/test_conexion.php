@@ -1,8 +1,9 @@
 <?php
 /**
  * @name Test Conexión
- * @description Verifica conexión a Firebird y muestra información del servidor
+ * @description Verifica la conexión a la base de datos Firebird y muestra información técnica detallada del servidor. Devuelve: el driver PDO utilizado, el servidor y puerto configurado, la ruta al archivo .FDB, el charset empleado para la conexión, la versión del motor Firebird consultada desde el sistema, la latencia en milisegundos de una consulta de prueba (SELECT 1), y el número total de tablas de usuario (no del sistema) presentes en la base. Esta prueba no modifica datos: solo ejecuta lecturas de metadatos y una consulta trivial para medir el tiempo de respuesta. Útil para diagnosticar problemas de conectividad antes de ejecutar otros scripts, validar credenciales, o verificar que la configuración de red/puerto sea correcta en entornos de producción.
  * @method POST
+ * @output TEXT
  */
 
 $SCRIPT_CONFIG = [

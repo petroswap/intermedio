@@ -1,16 +1,24 @@
 <?php
 /**
  * @name Obtener Ventas Históricas
- * @description Suma de litros vendidos por día y estación
+ * @description Consulta las ventas de productos combustibles agrupadas por día y estación (idbase). Devuelve la suma de litros vendidos para los productos indicados dentro del rango de fechas seleccionado, limitado a 1000 resultados. Útil para reportes de ventas históricas y análisis de rendimiento por estación.
+ *
+ * Parámetros:
+ * - Productos: IDs de producto separados por coma (ej: 1,2,5). Corresponden al campo IDPRODUCTO de la tabla LINEASVENTA. Definen qué combustibles se incluyen en el reporte.
+ * - Desde: Fecha y hora de inicio del rango (formato: YYYY-MM-DD HH:MM:SS). Incluye registros con fechahora mayor o igual a este valor.
+ * - Hasta: Fecha y hora de fin del rango (formato: YYYY-MM-DD HH:MM:SS). Incluye registros con fechahora menor o igual a este valor.
  * @method POST
  * @output JSON
  */
 
 $SCRIPT_CONFIG = [
     'params' => [
-        ['name' => 'productos', 'label' => 'Productos', 'type' => 'text', 'required' => true, 'placeholder' => '1,2,5', 'default' => '1'],
-        ['name' => 'desde', 'label' => 'Desde', 'type' => 'text', 'required' => true, 'placeholder' => '2026-01-01 00:00:00', 'default' => '2026-01-01 00:00:00'],
-        ['name' => 'hasta', 'label' => 'Hasta', 'type' => 'text', 'required' => true, 'placeholder' => '2026-12-31 23:59:59', 'default' => '2026-12-31 23:59:59']
+        ['name' => 'productos', 'label' => 'Productos', 'type' => 'text', 'required' => true, 'placeholder' => '1,2,5', 'default' => '1',
+         'help' => 'IDs de productos separados por coma (ej: 1,2,5). Corresponde al campo IDPRODUCTO de la tabla LINEASVENTA.'],
+        ['name' => 'desde', 'label' => 'Desde', 'type' => 'text', 'required' => true, 'placeholder' => '2026-01-01 00:00:00', 'default' => '2026-01-01 00:00:00',
+         'help' => 'Fecha y hora de inicio del rango (formato: YYYY-MM-DD HH:MM:SS). Incluye registros posteriores a esta fecha.'],
+        ['name' => 'hasta', 'label' => 'Hasta', 'type' => 'text', 'required' => true, 'placeholder' => '2026-12-31 23:59:59', 'default' => '2026-12-31 23:59:59',
+         'help' => 'Fecha y hora de fin del rango (formato: YYYY-MM-DD HH:MM:SS). Incluye registros anteriores a esta fecha.']
     ]
 ];
 
