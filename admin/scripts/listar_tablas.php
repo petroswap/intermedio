@@ -6,8 +6,8 @@
 
 require_once __DIR__ . '/script_guard.php';
 
-require_once dirname(__DIR__, 2) . '/config.php';
-require_once dirname(__DIR__, 2) . '/core/Database.php';
+require_once dirname(__DIR__, 1) . '/config.php';
+require_once dirname(__DIR__, 1) . '/core/Database.php';
 
 try {
     $db = Database::getInstance(DB_CONFIG);
