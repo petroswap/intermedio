@@ -32,15 +32,20 @@ try {
     $arr_productos = array_map('intval', explode(',', $productos));
     $arr_productos = array_filter($arr_productos);
     
+    if (empty($arr_productos)) {
+        echo json_encode(['success' => false, 'msg' => 'No hay productos válidos']);
+        exit;
+    }
+    
     $placeholders = implode(',', array_fill(0, count($arr_productos), '?'));
     
-    $sql = "SELECT 
+    $sql = "SELECT FIRST 1000
                 v.idbase,
                 CAST(v.fechahora AS DATE) as fecha,
                 SUM(lv.cantidad) as litros
             FROM ventas v
-            LEFT JOIN LINEASVENTA lv ON v.idventa = lv.idventa
-            LEFT JOIN SERIESALBARAN s ON v.idseriealbaran = s.idcontador
+            INNER JOIN LINEASVENTA lv ON v.idventa = lv.idventa
+            INNER JOIN SERIESALBARAN s ON v.idseriealbaran = s.idcontador
             WHERE lv.idproducto IN ($placeholders)
               AND s.idempresa = 1
               AND v.fechahora >= ?

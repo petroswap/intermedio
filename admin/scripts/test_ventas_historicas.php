@@ -27,20 +27,19 @@ try {
     
     $placeholders = implode(',', array_fill(0, count($productos), '?'));
     
-    $sql = "SELECT 
+    $sql = "SELECT FIRST 20
                 v.idbase,
                 CAST(v.fechahora AS DATE) as fecha,
                 SUM(lv.cantidad) as litros
             FROM ventas v
-            LEFT JOIN LINEASVENTA lv ON v.idventa = lv.idventa
-            LEFT JOIN SERIESALBARAN s ON v.idseriealbaran = s.idcontador
+            INNER JOIN LINEASVENTA lv ON v.idventa = lv.idventa
+            INNER JOIN SERIESALBARAN s ON v.idseriealbaran = s.idcontador
             WHERE lv.idproducto IN ($placeholders)
               AND s.idempresa = 1
               AND v.fechahora >= ?
               AND v.fechahora <= ?
             GROUP BY v.idbase, CAST(v.fechahora AS DATE)
-            ORDER BY v.idbase, fecha
-            ROWS 1 TO 20";
+            ORDER BY v.idbase, fecha";
     
     $params = array_merge($productos, [$desde, $hasta]);
     
