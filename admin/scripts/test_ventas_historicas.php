@@ -30,7 +30,7 @@ try {
     $sql = "SELECT 
                 v.idbase,
                 CAST(v.fechahora AS DATE) as fecha,
-                SUM(v.cantidad) as litros
+                SUM(lv.cantidad) as litros
             FROM ventas v
             LEFT JOIN LINEASVENTA lv ON v.idventa = lv.idventa
             LEFT JOIN SERIESALBARAN s ON v.idseriealbaran = s.idcontador
