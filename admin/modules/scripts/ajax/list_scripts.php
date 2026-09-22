@@ -73,14 +73,17 @@ function extractScriptConfig($file) {
     
     // Find $SCRIPT_CONFIG = [...]; block
     if (preg_match('/\$SCRIPT_CONFIG\s*=\s*(\[.*?\]);/s', $content, $match)) {
-        // Safe evaluation - only allow array structure
         $configStr = $match[1];
         
-        // Convert PHP array syntax to JSON-like for parsing
-        // Replace => with :, remove quotes around keys
-        $configStr = preg_replace("/'([^']*)'/", '"$1"', $configStr);
-        
-        $jsonStr = preg_replace('/(\w+)\s*=>/', '"$1":', $configStr);
+        // Convert PHP array syntax to JSON
+        // 1. Replace => with : (for associative keys)
+        $jsonStr = preg_replace("/'([^']*)'\s*=>/", '"$1":', $configStr);
+        // 2. Replace remaining single-quoted strings with double-quoted
+        $jsonStr = preg_replace("/'([^']*)'/", '"$1"', $jsonStr);
+        // 3. Convert PHP true/false/null to JSON
+        $jsonStr = preg_replace('/\btrue\b/i', 'true', $jsonStr);
+        $jsonStr = preg_replace('/\bfalse\b/i', 'false', $jsonStr);
+        $jsonStr = preg_replace('/\bnull\b/i', 'null', $jsonStr);
         
         $config = json_decode($jsonStr, true);
         

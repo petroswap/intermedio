@@ -10,7 +10,7 @@ $SCRIPT_CONFIG = [
     'params' => [
         ['name' => 'productos', 'label' => 'Productos', 'type' => 'text', 'required' => true, 'placeholder' => '1,2,5', 'default' => '1'],
         ['name' => 'desde', 'label' => 'Desde', 'type' => 'text', 'required' => true, 'placeholder' => '2026-01-01 00:00:00', 'default' => '2026-01-01 00:00:00'],
-        ['name' => 'hasta', 'label' => 'Hasta', 'type' => 'text', 'required' => true, 'placeholder' => '2026-12-31 23:59:59', 'default' => date('Y-m-d') . ' 23:59:59']
+        ['name' => 'hasta', 'label' => 'Hasta', 'type' => 'text', 'required' => true, 'placeholder' => '2026-12-31 23:59:59', 'default' => '2026-12-31 23:59:59']
     ]
 ];
 
