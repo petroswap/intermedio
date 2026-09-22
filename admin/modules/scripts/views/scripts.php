@@ -1,5 +1,5 @@
 <div class="scripts-container">
-    <!-- Password Modal (shown when executing a script) -->
+    <!-- Password Modal -->
     <div id="scripts-password-modal" class="modal" style="display: none;">
         <div class="modal-content modal-sm">
             <div class="modal-header">
@@ -20,38 +20,109 @@
         </div>
     </div>
 
-    <!-- Scripts List -->
-    <div class="card">
-        <div class="card-header">
-            <h3 class="card-title">Scripts Disponibles</h3>
-            <div class="card-actions">
-                <button id="btn-scripts-refresh" class="btn btn-sm btn-ghost" title="Recargar lista">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                </button>
+    <!-- Two Column Layout -->
+    <div class="scripts-layout">
+        <!-- Left Column: Scripts List (1/3) -->
+        <div class="scripts-panel-left">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Scripts</h3>
+                    <div class="card-actions">
+                        <button id="btn-scripts-refresh" class="btn btn-sm btn-ghost" title="Recargar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body scripts-list-body">
+                    <div id="scripts-list">
+                        <div class="loading"><div class="spinner"></div><p>Cargando...</p></div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="card-body">
-            <div id="scripts-list">
-                <div class="loading"><div class="spinner"></div><p>Cargando scripts...</p></div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Script Execution Panel (shown after clicking Ejecutar) -->
-    <div id="script-execution-panel" class="card" style="margin-top: 1rem; display: none;">
-        <div class="card-header">
-            <h3 class="card-title">Ejecutar: <span id="script-current-name"></span></h3>
-            <button id="btn-script-close" class="btn btn-sm btn-ghost">✕</button>
-        </div>
-        <div class="card-body">
-            <p id="script-description" class="text-muted"></p>
-            <div id="script-result" style="margin-top: 1rem;"></div>
-            <div style="margin-top: 1rem;">
-                <button id="btn-script-confirm" class="btn btn-danger">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    Ejecutar Script
-                </button>
+        <!-- Right Column: Execution Panel (2/3) -->
+        <div class="scripts-panel-right">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Resultado: <span id="script-current-name">Selecciona un script</span></h3>
+                </div>
+                <div class="card-body scripts-result-body">
+                    <div id="script-placeholder" class="empty-state">
+                        <div class="empty-state-icon">▶️</div>
+                        <p class="empty-state-title">Sin ejecutar</p>
+                        <p class="empty-state-description">Selecciona un script de la izquierda y haz clic en Ejecutar</p>
+                    </div>
+                    <div id="script-result" style="display: none;"></div>
+                </div>
+                <div class="card-footer" id="script-footer" style="display: none;">
+                    <button id="btn-script-confirm" class="btn btn-danger">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Ejecutar Script
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.scripts-layout {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+    min-height: 500px;
+}
+.scripts-panel-left .card,
+.scripts-panel-right .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.scripts-list-body {
+    overflow-y: auto;
+    max-height: 600px;
+}
+.scripts-result-body {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 300px;
+}
+.scripts-result-body .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+}
+.scripts-script-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.scripts-script-item:hover {
+    background: var(--surface-secondary);
+}
+.scripts-script-item.active {
+    background: var(--brand-50);
+    border-left: 3px solid var(--brand-500);
+}
+.scripts-script-info h4 {
+    margin: 0 0 0.25rem;
+    font-size: 0.9rem;
+}
+.scripts-script-info p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+@media (max-width: 768px) {
+    .scripts-layout {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

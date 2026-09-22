@@ -15,15 +15,13 @@ var ScriptsModule = {
             self.loadScripts();
         });
         
-        $(document).on('click.scriptsmod', '.btn-run-script', function() {
-            var scriptId = $(this).data('script');
-            var scriptName = $(this).data('name');
-            var scriptDesc = $(this).data('description');
-            self.showExecutionPanel(scriptId, scriptName, scriptDesc);
-        });
-        
-        $(document).on('click.scriptsmod', '#btn-script-close', function() {
-            self.hideExecutionPanel();
+        $(document).on('click.scriptsmod', '.scripts-script-item', function() {
+            var $item = $(this);
+            var scriptId = $item.data('script');
+            var scriptName = $item.data('name');
+            $('.scripts-script-item').removeClass('active');
+            $item.addClass('active');
+            self.selectScript(scriptId, scriptName);
         });
         
         $(document).on('click.scriptsmod', '#btn-script-confirm', function() {
@@ -52,19 +50,19 @@ var ScriptsModule = {
     loadScripts: function() {
         var self = this;
         var $list = $('#scripts-list');
-        $list.html('<div class="loading"><div class="spinner"></div><p>Cargando scripts...</p></div>');
+        $list.html('<div class="loading"><div class="spinner"></div><p>Cargando...</p></div>');
         
         Admin.post('modules/scripts/ajax/list_scripts.php', {})
             .then(function(response) {
                 if (response.success && response.data) {
                     self.renderScripts(response.data);
                 } else {
-                    $list.html('<div class="empty-state"><div class="empty-state-icon">❌</div><p class="empty-state-title">Error al cargar scripts</p></div>');
+                    $list.html('<p class="text-muted">Error al cargar scripts</p>');
                 }
             })
             .catch(function(error) {
                 Admin.logError('scripts', error);
-                $list.html('<div class="empty-state"><div class="empty-state-icon">❌</div><p class="empty-state-title">Error de conexión</p></div>');
+                $list.html('<p class="text-muted">Error de conexión</p>');
             });
     },
     
@@ -73,36 +71,30 @@ var ScriptsModule = {
         $list.empty();
         
         if (!scripts || scripts.length === 0) {
-            $list.html('<div class="empty-state"><div class="empty-state-icon">📜</div><p class="empty-state-title">No hay scripts disponibles</p><p class="empty-state-description">Coloca archivos .php en la carpeta admin/scripts/</p></div>');
+            $list.html('<div class="empty-state"><p class="empty-state-title">No hay scripts</p><p class="empty-state-description">Coloca .php en admin/scripts/</p></div>');
             return;
         }
         
-        var html = '<table class="data-table"><thead><tr><th>Script</th><th>Descripción</th><th>Acciones</th></tr></thead><tbody>';
-        
+        var html = '';
         scripts.forEach(function(script) {
-            html += '<tr>';
-            html += '<td><strong>' + Admin.escapeHtml(script.name) + '</strong></td>';
-            html += '<td>' + Admin.escapeHtml(script.description || 'Script personalizado') + '</td>';
-            html += '<td><button class="btn btn-sm btn-outline btn-run-script" data-script="' + Admin.escapeHtml(script.id) + '" data-name="' + Admin.escapeHtml(script.name) + '" data-description="' + Admin.escapeHtml(script.description || '') + '">Ejecutar</button></td>';
-            html += '</tr>';
+            html += '<div class="scripts-script-item" data-script="' + Admin.escapeHtml(script.id) + '" data-name="' + Admin.escapeHtml(script.name) + '">';
+            html += '  <div class="scripts-script-info">';
+            html += '    <h4>' + Admin.escapeHtml(script.name) + '</h4>';
+            html += '    <p>' + Admin.escapeHtml(script.description || '') + '</p>';
+            html += '  </div>';
+            html += '  <button class="btn btn-sm btn-outline">▶ Ejecutar</button>';
+            html += '</div>';
         });
         
-        html += '</tbody></table>';
         $list.html(html);
     },
     
-    showExecutionPanel: function(scriptId, scriptName, scriptDescription) {
+    selectScript: function(scriptId, scriptName) {
         this.currentScript = scriptId;
         $('#script-current-name').text(scriptName);
-        $('#script-description').text(scriptDescription || '');
-        $('#script-result').empty();
-        $('#script-execution-panel').show();
-        $('html, body').animate({ scrollTop: $('#script-execution-panel').offset().top - 100 }, 300);
-    },
-    
-    hideExecutionPanel: function() {
-        $('#script-execution-panel').hide();
-        this.currentScript = null;
+        $('#script-placeholder').hide();
+        $('#script-result').empty().show();
+        $('#script-footer').show();
     },
     
     showPasswordModal: function() {
@@ -152,27 +144,26 @@ var ScriptsModule = {
         var scriptId = this.currentScript;
         
         if (!scriptId) {
-            Admin.toastError('No hay script seleccionado');
+            Admin.toastError('Selecciona un script primero');
             return;
         }
         
-        $('#script-result').html('<div class="loading"><div class="spinner"></div><p>Ejecutando script...</p></div>');
+        $('#script-result').html('<div class="loading"><div class="spinner"></div><p>Ejecutando...</p></div>');
         $('#btn-script-confirm').prop('disabled', true);
         
         Admin.post('modules/scripts/ajax/run_script.php', { script_id: scriptId })
             .then(function(response) {
                 if (response.success) {
-                    var output = response.data.output || 'Script ejecutado correctamente';
-                    var html = '<div class="alert alert-success" style="margin-bottom: 0.5rem;"><strong>✅ Ejecutado correctamente</strong></div>';
-                    html += '<textarea id="script-output-text" class="form-input" rows="12" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary);">' + Admin.escapeHtml(output) + '</textarea>';
+                    var output = response.data.output || 'Ejecutado correctamente';
+                    var html = '<div class="alert alert-success" style="margin-bottom: 0.5rem;"><strong>✅ Completado</strong></div>';
+                    html += '<textarea id="script-output-text" class="form-input" rows="14" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary); resize: vertical;">' + Admin.escapeHtml(output) + '</textarea>';
                     html += '<div style="margin-top: 0.5rem;">';
-                    html += '<button class="btn btn-sm btn-outline" id="btn-copy-output">📋 Copiar resultado</button>';
+                    html += '<button class="btn btn-sm btn-outline" id="btn-copy-output">📋 Copiar</button>';
                     html += '</div>';
                     $('#script-result').html(html);
                 } else {
-                    var errMsg = response.msg || 'Error desconocido';
                     var html = '<div class="alert alert-danger" style="margin-bottom: 0.5rem;"><strong>❌ Error</strong></div>';
-                    html += '<textarea class="form-input" rows="6" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary);">' + Admin.escapeHtml(errMsg) + '</textarea>';
+                    html += '<textarea class="form-input" rows="8" readonly style="font-family: monospace; font-size: 12px; background: var(--surface-secondary);">' + Admin.escapeHtml(response.msg || 'Error desconocido') + '</textarea>';
                     $('#script-result').html(html);
                 }
             })
