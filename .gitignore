@@ -38,6 +38,8 @@ admin/scripts/*
 !admin/scripts/test_conexion.php
 !admin/scripts/obtener_ventas_historicas.php
 !admin/scripts/test_ventas_historicas.php
+!admin/scripts/obtener_ventas_por_horas.php
+!admin/scripts/test_ventas_por_horas.php
 code/*
 inspector/*
 ruta_intermedio/*
