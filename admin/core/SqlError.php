@@ -113,6 +113,10 @@ class SqlError
             'Operación de solo lectura',
             'El objeto o la base de datos están en modo de solo lectura, por lo que la operación no puede realizarse.',
         ],
+        'transaction' => [
+            'Error de transacción',
+            'Estado de transacción inválido en el driver (pdo_firebird). La consulta se reintenta con conexión nueva automáticamente; si persiste, reinicia el servicio de Firebird.',
+        ],
         'resource_limit' => [
             'Límite de recursos excedido',
             'Demasiadas peticiones, memoria o contextos. Simplifica la consulta o contacta con el administrador de la BD.',
@@ -163,6 +167,8 @@ class SqlError
     private const PATTERNS = [
         // Conexión / apertura de la base de datos
         ['/(i\/o error during|createfile \(open\)|unable to complete network request|failed to establish a connection|connection lost|connection shutdown|connection rejected|cannot attach|unable to open database|unavailable database|not a valid database|can.t open database file|error reading data from the connection|error writing data to the connection|failed to locate host|invalid database handle)/i', 'connection'],
+        // Estado de transacción (pdo_firebird: -901)
+        ['/(invalid transaction handle|expecting explicit transaction start)/i', 'transaction'],
         // Autenticación
         ['/(your user name and password are not defined|password .{0,30}not defined|login name|user name .{0,30}(required|not found)|password required)/i', 'auth'],
         // Permisos
@@ -236,6 +242,7 @@ class SqlError
         -830 => 'aggregate_group',
         -833 => 'datatype',
         -836 => 'db_exception',
+        -901 => 'transaction',
         -902 => 'server_error',
         -904 => 'server_error',
         -913 => 'lock',
