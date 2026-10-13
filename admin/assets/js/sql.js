@@ -146,6 +146,10 @@ const SqlModule = {
                 const elapsed = Date.now() - startTime;
                 const rows = response.data && response.data.data ? response.data.data : [];
 
+                if (response.success && response.data && response.data.warning) {
+                    Admin.toastWarning(response.data.warning, 8000);
+                }
+
                 if (response.success && rows.length > 0) {
                     this.renderResults(rows, elapsed, rows.length);
                     Admin.addQueryHistory(sql, true, elapsed);

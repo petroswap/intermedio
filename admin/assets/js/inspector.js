@@ -879,6 +879,9 @@ const Inspector = {
             if (self._initialSql === null) self._initialSql = sql;
             $('#btn-reset-sql').toggle(sql !== self._initialSql);
             Admin.addQueryHistory(sql, true, elapsed);
+            if (inner.warning) {
+                Admin.toastWarning(inner.warning, 8000);
+            }
         })
         .catch(function(error) {
             self.hideOverlay();

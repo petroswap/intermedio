@@ -245,6 +245,74 @@ function executeReadOnlyScript(PDO $pdo, array $stmts, bool $hasSetReadOnly): ar
     return $data;
 }
 
+/**
+ * Modo de respaldo cuando el driver no puede ejecutar SET TRANSACTION (-901
+ * persistente, p.ej. pdo_firebird + Firebird remoto 2.5/3.0 en Linux).
+ * Emula el envoltorio con transacción explícita + rollback final:
+ * los datos se devuelven pero nada se persiste (el ROLLBACK del script
+ * o el cierre de la conexión revierten cualquier cambio interno).
+ */
+function executeEmulatedScript(PDO $pdo, array $stmts): array
+{
+    try {
+        $pdo->beginTransaction();
+    } catch (PDOException $e) {
+        $e->statementNumber = 1;
+        throw $e;
+    }
+
+    $data = [];
+
+    foreach ($stmts as $idx => $stmtSql) {
+        $n = $idx + 1;
+        $type = classifyStatement($stmtSql);
+
+        try {
+            if ($type === 'set_ro') {
+                // sustituido por beginTransaction() — no ejecutar la sentencia
+                continue;
+            }
+
+            if ($type === 'rollback') {
+                if ($pdo->inTransaction()) {
+                    try {
+                        $pdo->rollBack();
+                    } catch (Throwable $e) {
+                        try {
+                            $pdo->query('ROLLBACK');
+                        } catch (Throwable $e2) {
+                        }
+                    }
+                } else {
+                    try {
+                        $pdo->query($stmtSql);
+                    } catch (Throwable $e) {
+                    }
+                }
+                continue;
+            }
+
+            $stmt = $pdo->query($stmtSql);
+            if ($stmt !== false) {
+                $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (PDOException $e) {
+            $e->statementNumber = $n;
+            throw $e;
+        }
+    }
+
+    // cerrar cualquier transacción que haya quedado abierta
+    if ($pdo->inTransaction()) {
+        try {
+            $pdo->rollBack();
+        } catch (Throwable $e) {
+        }
+    }
+
+    return $data;
+}
+
 try {
     $sql = $_POST['sql'] ?? '';
     if (empty($sql) || trim($sql) === '') {
@@ -299,9 +367,13 @@ try {
 
     $startTime = microtime(true);
 
-    // Reintento completo del script con conexión NUEVA si pdo_firebird
-    // falla con -901 (invalid transaction handle): el estado residual del
-    // driver a veces no se limpia en la misma conexión.
+    // Estrategia:
+    // 1. nativo: ejecuta SET TRANSACTION READ ONLY via driver (2 intentos con
+    //    reconexión si pdo_firebird devuelve -901)
+    // 2. emulado: si el SET nativo es imposible en este driver/servidor
+    //    (p.ej. Ubuntu + Firebird remoto 2.5/3.0), se sustituye por una
+    //    transacción explícita con rollback final — mismos datos, nada persiste
+    $mode = 'native';
     $maxAttempts = 2;
     $attempt = 0;
     $data = [];
@@ -309,22 +381,35 @@ try {
     while (true) {
         $attempt++;
         try {
-            $data = executeReadOnlyScript($pdo, $stmts, $hasSetReadOnly);
+            $data = ($mode === 'emulated')
+                ? executeEmulatedScript($pdo, $stmts)
+                : executeReadOnlyScript($pdo, $stmts, $hasSetReadOnly);
             break;
         } catch (PDOException $e) {
             $failedN = isset($e->statementNumber) ? (int)$e->statementNumber : null;
             $msg = $e->getMessage();
             $isTxnState = strpos($msg, '-901') !== false || stripos($msg, 'invalid transaction handle') !== false;
 
-            if ($isTxnState && $attempt < $maxAttempts) {
-                // Reconexión total: destruir la conexión contaminada y crear otra nueva
+            if ($isTxnState) {
+                $reconnected = false;
                 try {
                     Database::getInstance(DB_CONFIG)->disconnect();
                     $db = Database::getInstance(DB_CONFIG);
                     $pdo = $db->getConnection();
-                    continue;
+                    $reconnected = true;
                 } catch (Throwable $re) {
-                    // si la reconexión falla, se responde con el error original
+                }
+
+                if ($mode === 'native' && $attempt >= $maxAttempts && $hasSetReadOnly && $reconnected) {
+                    // SET nativo imposible en este entorno → modo emulado con conexión nueva
+                    $mode = 'emulated';
+                    $attempt = 0;
+                    continue;
+                }
+
+                if ($attempt < $maxAttempts && $reconnected) {
+                    // reconectar y reintentar el mismo modo
+                    continue;
                 }
             }
 
@@ -353,13 +438,22 @@ try {
         }, $row);
     }, $data);
 
-    Response::success([
+    $payload = [
         'data'       => $data,
         'rows'       => count($data),
         'time'       => $elapsed,
         'statements' => count($stmts),
         'attempts'   => $attempt,
-    ]);
+        'mode'       => $mode,
+    ];
+
+    if ($mode === 'emulated') {
+        $payload['warning'] = 'SET TRANSACTION READ ONLY no es soportado por este driver/servidor. '
+            . 'Se ejecutó dentro de una transacción con ROLLBACK final: los resultados se devuelven normalmente '
+            . 'y no se persiste ningún cambio, pero la BD no rechaza escrituras durante la ejecución.';
+    }
+
+    Response::success($payload);
 } catch (PDOException $e) {
     $err = SqlError::fromException($e);
     Response::error(SqlError::message($err), 400, ['error' => $err]);
