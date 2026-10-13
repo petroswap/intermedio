@@ -203,6 +203,34 @@ try {
         }
     }
 
+    /**
+     * ¿Error de handle de transacción de pdo_firebird? (SQLCODE -901)
+     */
+    $isTxnStateError = function (Throwable $e): bool {
+        $msg = $e->getMessage();
+        return strpos($msg, '-901') !== false || stripos($msg, 'invalid transaction handle') !== false;
+    };
+
+    /**
+     * Limpiar estado residual de transacción para que SET TRANSACTION pueda ejecutarse.
+     */
+    $clearTxnState = function (PDO $pdo) use ($isTxnStateError): void {
+        try {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+        } catch (Throwable $e) {
+        }
+        try {
+            $pdo->query('COMMIT');
+        } catch (Throwable $e) {
+        }
+        try {
+            $pdo->query('ROLLBACK');
+        } catch (Throwable $e) {
+        }
+    };
+
     // pdo_firebird necesita "preparar" la conexión antes de aceptar SET TRANSACTION
     // (un COMMIT/ROLLBACK fallido limpia el handle de transacción residual)
     if ($hasSetReadOnly) {
@@ -216,43 +244,68 @@ try {
     $startTime = microtime(true);
 
     $data = [];
-    $rowsAffectedTotal = 0;
 
-    foreach ($stmts as $stmtSql) {
+    foreach ($stmts as $idx => $stmtSql) {
+        $n = $idx + 1;
+        $total = count($stmts);
         $type = classifyStatement($stmtSql);
 
-        if ($type === 'set_ro') {
-            $pdo->query($stmtSql);
-            continue;
-        }
-
-        if ($type === 'rollback') {
-            // ROLLBACK vía API PDO: query('ROLLBACK') falla con pdo_firebird tras SET TRANSACTION
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
-            } else {
+        try {
+            if ($type === 'set_ro') {
                 try {
                     $pdo->query($stmtSql);
-                } catch (Throwable $e) {
-                    // sin transacción activa: no hay nada que revertir
+                } catch (PDOException $e) {
+                    // -901 intermitente del driver: limpiar estado y reintentar una vez
+                    if ($isTxnStateError($e)) {
+                        $clearTxnState($pdo);
+                        $pdo->query($stmtSql);
+                    } else {
+                        throw $e;
+                    }
                 }
+                continue;
             }
-            continue;
-        }
 
-        // select | with
-        $stmt = $pdo->query($stmtSql);
-        if ($stmt !== false) {
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($type === 'rollback') {
+                // Best-effort: si el rollback explícito falla (-901), la transacción
+                // se revierte al cerrar la conexión al final del request igualmente.
+                if ($pdo->inTransaction()) {
+                    try {
+                        $pdo->rollBack();
+                    } catch (Throwable $e) {
+                        try {
+                            $pdo->query('ROLLBACK');
+                        } catch (Throwable $e2) {
+                        }
+                    }
+                } else {
+                    try {
+                        $pdo->query($stmtSql);
+                    } catch (Throwable $e) {
+                        // sin transacción activa: no hay nada que revertir
+                    }
+                }
+                continue;
+            }
+
+            // select | with
+            $stmt = $pdo->query($stmtSql);
+            if ($stmt !== false) {
+                $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+        } catch (PDOException $e) {
+            $err = SqlError::fromException($e);
+            $err['detail'] = "Sentencia #{$n}/{$total}: " . $err['detail'];
+            Response::error(SqlError::message($err), 400, ['error' => $err]);
         }
     }
 
-    // Seguridad: si hubo SET READ ONLY y el script no incluyó ROLLBACK explícito, cerrar transacción
-    if ($hasSetReadOnly && $pdo->inTransaction()) {
+    // Seguridad: si quedó transacción abierta, cerrarla (best-effort)
+    if ($pdo->inTransaction()) {
         try {
             $pdo->rollBack();
         } catch (Throwable $e) {
-            // ignorar
+            // ignorar: la conexión se cierra al final del request y Firebird revierte
         }
     }
 
