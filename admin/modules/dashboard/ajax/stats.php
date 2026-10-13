@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Database.php';
 require_once __DIR__ . '/../../../core/Response.php';
+require_once __DIR__ . '/../../../core/SqlError.php';
 
 try {
     $startTime = microtime(true);
@@ -56,6 +57,10 @@ try {
         'total_records' => $totalRecords,
         'top_tables' => $topTables,
     ]);
-} catch (Exception $e) {
-    Response::error('Error al obtener estadísticas: ' . $e->getMessage());
+} catch (PDOException $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 400, ['error' => $err]);
+} catch (Throwable $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 500, ['error' => $err]);
 }

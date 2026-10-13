@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Database.php';
 require_once __DIR__ . '/../../../core/Response.php';
+require_once __DIR__ . '/../../../core/SqlError.php';
 
 try {
     $startTime = microtime(true);
@@ -26,5 +27,6 @@ try {
         'latency_ms' => $elapsed,
     ]);
 } catch (Exception $e) {
-    Response::error('Connection failed: ' . $e->getMessage());
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 500, ['error' => $err]);
 }

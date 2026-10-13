@@ -125,14 +125,280 @@ const Admin = {
                     if (response.success) {
                         resolve(response);
                     } else {
-                        reject(new Error(response.msg || 'Error desconocido'));
+                        reject(Admin.buildError(response.msg || 'Error desconocido', response.error));
                     }
                 },
                 error: function(xhr, status, error) {
-                    reject(new Error(error || 'Error de conexión'));
+                    var body = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+
+                    if (body && body.success === false) {
+                        reject(Admin.buildError(body.msg || error || 'Error desconocido', body.error));
+                        return;
+                    }
+
+                    var details;
+                    if (!xhr || xhr.status === 0) {
+                        details = {
+                            type: 'network',
+                            label: 'Sin respuesta del servidor',
+                            hint: 'No se recibió respuesta del servidor. Comprueba tu conexión de red y que el servicio web esté activo.',
+                            detail: error || status || 'Sin conexión con el servidor'
+                        };
+                    } else {
+                        details = {
+                            type: 'http',
+                            label: 'Error del servidor web',
+                            hint: 'El servidor devolvió una respuesta no válida. Revisa el servidor Apache/IIS y los registros de PHP.',
+                            detail: 'HTTP ' + xhr.status + (error ? ' ' + error : '')
+                        };
+                    }
+
+                    reject(Admin.buildError(details.label + ': ' + details.detail, details));
                 }
             });
         });
+    },
+
+    /**
+     * Crear un Error con el detalle tipado del backend adjunto
+     */
+    buildError: function(message, details) {
+        var err = new Error(message || 'Error desconocido');
+        err.details = details || null;
+        return err;
+    },
+
+    /**
+     * Normalizar cualquier error (Error, string o detalle del servidor)
+     * a {type, label, hint, detail, code, gds, sqlstate, line, column, message}
+     */
+    describeError: function(err) {
+        var source = null;
+
+        if (err && typeof err === 'object' && ('type' in err || 'label' in err || 'detail' in err)) {
+            source = err;
+        } else if (err && err.details) {
+            source = err.details;
+        } else if (typeof err === 'string') {
+            source = { type: 'unknown', detail: err };
+        } else if (err && err.message) {
+            source = { type: 'unknown', detail: err.message };
+        }
+
+        source = source || {};
+
+        var message = '';
+        if (err && typeof err === 'object' && err.message) {
+            message = err.message;
+        } else if (source.message) {
+            message = source.message;
+        } else {
+            message = source.detail || 'Error desconocido';
+        }
+
+        return {
+            type: source.type || 'unknown',
+            label: source.label || 'Error de base de datos',
+            hint: source.hint || '',
+            detail: source.detail || '',
+            code: (source.code === 0 || source.code) ? source.code : null,
+            gds: (source.gds === 0 || source.gds) ? source.gds : null,
+            sqlstate: source.sqlstate || null,
+            line: (source.line === 0 || source.line) ? source.line : null,
+            column: (source.column === 0 || source.column) ? source.column : null,
+            message: message
+        };
+    },
+
+    /**
+     * HTML de caja de error tipado (título + detalle + consejo + metadatos)
+     */
+    errorBoxHtml: function(err) {
+        var d = this.describeError(err);
+        var esc = this.escapeHtml;
+
+        var html = '<div class="sql-error-box" role="alert">';
+        html += '<div class="sql-error-title"><span class="sql-error-badge" data-type="' + esc(d.type) + '">' + esc(d.label) + '</span></div>';
+
+        var body = d.detail || d.message || d.label;
+        html += '<pre class="sql-error-message">' + esc(body) + '</pre>';
+
+        if (d.hint) {
+            html += '<div class="sql-error-hint">' + esc(d.hint) + '</div>';
+        }
+
+        var meta = [];
+        if (d.code !== null && d.code !== undefined) meta.push(['SQLCODE', d.code]);
+        if (d.gds !== null && d.gds !== undefined) meta.push(['GDSCODE', d.gds]);
+        if (d.sqlstate) meta.push(['SQLSTATE', d.sqlstate]);
+        if (d.line !== null) {
+            meta.push(['Ubicación', 'línea ' + d.line + (d.column !== null ? ', columna ' + d.column : '')]);
+        }
+
+        if (meta.length) {
+            html += '<div class="sql-error-meta">';
+            meta.forEach(function(item) {
+                html += '<span class="sql-error-meta-item"><b>' + esc(item[0]) + '</b> ' + esc(String(item[1])) + '</span>';
+            });
+            html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+    },
+
+    /**
+     * Divide un script SQL en sentencias individuales.
+     * Respeta cadenas '...' / "..." y comentarios -- / /* *\/
+     */
+    splitSqlStatements: function(sql) {
+        var stmts = [];
+        var current = '';
+        var len = (sql || '').length;
+        var i = 0;
+
+        function isCommentOnly(s) {
+            var noBlock = s.replace(/\/\*[\s\S]*?\*\//g, '');
+            var noLine = noBlock.replace(/--.*$/gm, '');
+            return noLine.trim() === '';
+        }
+
+        while (i < len) {
+            var ch = sql[i];
+
+            // Comentario de línea
+            if (ch === '-' && i + 1 < len && sql[i + 1] === '-') {
+                var j = sql.indexOf('\n', i);
+                if (j === -1) {
+                    current += sql.substring(i);
+                    i = len;
+                } else {
+                    current += sql.substring(i, j + 1);
+                    i = j + 1;
+                }
+                continue;
+            }
+
+            // Comentario de bloque
+            if (ch === '/' && i + 1 < len && sql[i + 1] === '*') {
+                var j2 = sql.indexOf('*/', i + 2);
+                if (j2 === -1) {
+                    current += sql.substring(i);
+                    i = len;
+                } else {
+                    current += sql.substring(i, j2 + 2);
+                    i = j2 + 2;
+                }
+                continue;
+            }
+
+            // Cadena '...'
+            if (ch === "'") {
+                current += ch;
+                i++;
+                while (i < len) {
+                    current += sql[i];
+                    if (sql[i] === "'") {
+                        if (i + 1 < len && sql[i + 1] === "'") {
+                            current += sql[i + 1];
+                            i += 2;
+                            continue;
+                        }
+                        i++;
+                        break;
+                    }
+                    i++;
+                }
+                continue;
+            }
+
+            // Identificador "..."
+            if (ch === '"') {
+                current += ch;
+                i++;
+                while (i < len) {
+                    current += sql[i];
+                    if (sql[i] === '"') {
+                        if (i + 1 < len && sql[i + 1] === '"') {
+                            current += sql[i + 1];
+                            i += 2;
+                            continue;
+                        }
+                        i++;
+                        break;
+                    }
+                    i++;
+                }
+                continue;
+            }
+
+            // Fin de sentencia
+            if (ch === ';') {
+                var trimmed = current.trim();
+                if (trimmed && !isCommentOnly(trimmed)) {
+                    stmts.push(trimmed);
+                }
+                current = '';
+                i++;
+                continue;
+            }
+
+            current += ch;
+            i++;
+        }
+
+        var last = current.trim();
+        if (last && !isCommentOnly(last)) {
+            stmts.push(last);
+        }
+
+        return stmts;
+    },
+
+    /**
+     * Validación client-side de consulta de solo lectura.
+     * Whitelist: SELECT, WITH, SET TRANSACTION READ ONLY, ROLLBACK.
+     * Devuelve null si es válida, o un detalle tipado si no lo es.
+     */
+    validateReadOnlySql: function(sql) {
+        var stmts = this.splitSqlStatements(sql || '');
+
+        if (!stmts.length) {
+            return {
+                type: 'validation',
+                label: 'Consulta vacía',
+                detail: 'No se envió ninguna consulta SQL.',
+                hint: 'Escribe una consulta SELECT (o WITH) en el editor.'
+            };
+        }
+
+        for (var s = 0; s < stmts.length; s++) {
+            var compact = stmts[s].replace(/\s+/g, ' ').trim();
+            var upper = compact.toUpperCase();
+
+            var ok =
+                /^SELECT\b/.test(upper) ||
+                /^WITH\b/.test(upper) ||
+                (/^SET\s+TRANSACTION\b/.test(upper) && /READ\s+ONLY\b/.test(upper) && !/READ\s+WRITE\b/.test(upper)) ||
+                /^ROLLBACK(\s+WORK)?\b/.test(upper);
+
+            if (!ok) {
+                var match = compact.match(/^([A-Za-z_]+)/);
+                var keyword = match ? match[1].toUpperCase() : '';
+                var num = s + 1;
+                var total = stmts.length;
+                return {
+                    type: 'validation',
+                    label: 'Consulta no permitida',
+                    detail: keyword
+                        ? 'Sentencia #' + num + '/' + total + ' comienza por «' + keyword + '». Solo se permiten: SELECT, WITH, SET TRANSACTION READ ONLY y ROLLBACK.'
+                        : 'Sentencia #' + num + '/' + total + ' no permitida. Solo se permiten: SELECT, WITH, SET TRANSACTION READ ONLY y ROLLBACK.',
+                    hint: 'Esta consola es de solo lectura: retira la sentencia que modifica datos (INSERT, UPDATE, DELETE, DDL, etc.) y vuelve a intentarlo.'
+                };
+            }
+        }
+
+        return null;
     },
 
     /**

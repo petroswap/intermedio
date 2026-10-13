@@ -226,9 +226,10 @@ const Inspector = {
             }
         })
         .catch(function(error) {
-            Admin.logError('loadTables', error);
-            tbody.html('<tr><td colspan="2" class="text-center" style="padding:2rem;color:var(--error)">Error al conectar con la BD</td></tr>');
-            Admin.showAlert('No se pudo conectar a la base de datos Firebird.', 'danger', 'Error de conexión');
+            Admin.logError('loadTables', error, error.details || null);
+            var detail = Admin.describeError(error);
+            tbody.html('<tr><td colspan="2" class="text-center" style="padding:2rem;color:var(--error)">' + Admin.escapeHtml(detail.label) + '<br><small>' + Admin.escapeHtml(detail.detail || detail.message) + '</small></td></tr>');
+            Admin.showAlert(detail.label + ': ' + (detail.detail || detail.message), 'danger', 'Error al listar las tablas');
         });
     },
 
@@ -396,8 +397,8 @@ const Inspector = {
             self.loadLastRecords(10);
         })
         .catch(function(error) {
-            Admin.logError('loadTableInfo', error);
-            Admin.showError($('#results-container'), 'Error al cargar columnas: ' + error.message);
+            Admin.logError('loadTableInfo', error, error.details || null);
+            self.showErrorBox(error, 'No se pudieron cargar las columnas de la tabla');
         });
     },
 
@@ -479,8 +480,8 @@ const Inspector = {
         })
         .catch(function(error) {
             self.hideOverlay();
-            Admin.logError('loadLastRecords', error);
-            Admin.showError($('#results-container'), 'Error al cargar datos: ' + error.message);
+            Admin.logError('loadLastRecords', error, error.details || null);
+            self.showErrorBox(error, 'No se pudieron cargar los últimos ' + limit + ' registros');
         });
     },
 
@@ -533,8 +534,8 @@ const Inspector = {
         })
         .catch(function(error) {
             self.hideOverlay();
-            Admin.logError('loadAllRecords', error);
-            Admin.showError($('#results-container'), 'Error al cargar datos: ' + error.message);
+            Admin.logError('loadAllRecords', error, error.details || null);
+            self.showErrorBox(error, 'No se pudieron cargar todos los registros');
         });
     },
 
@@ -573,8 +574,8 @@ const Inspector = {
         })
         .catch(function(error) {
             self.hideOverlay();
-            Admin.logError('applyFilters', error);
-            Admin.showError($('#results-container'), 'Error al buscar: ' + error.message);
+            Admin.logError('applyFilters', error, error.details || null);
+            self.showErrorBox(error, 'No se pudo aplicar la búsqueda');
         });
     },
 
@@ -838,17 +839,24 @@ const Inspector = {
         $('.modal').hide();
     },
 
+    /**
+     * Mostrar un error tipado (tipo + detalle + consejo) en el contenedor de resultados
+     */
+    showErrorBox: function(error, context) {
+        var html = '';
+        if (context) {
+            html += '<div class="sql-error-context">' + Admin.escapeHtml(context) + '</div>';
+        }
+        html += Admin.errorBoxHtml(error);
+        $('#results-container').html(html);
+    },
+
     executeSql: function() {
         var sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-input').val().trim();
 
-        if (!sql) {
-            Admin.showAlert('Escribe una consulta SQL', 'warning');
-            return;
-        }
-
-        var limpia = sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--.*$/gm, '').trim().substring(0, 10).toUpperCase();
-        if (!limpia.startsWith('SELECT') && !limpia.startsWith('WITH')) {
-            Admin.showAlert('Solo se permiten consultas SELECT de lectura', 'warning');
+        var invalid = Admin.validateReadOnlySql(sql);
+        if (invalid) {
+            $('#results-container').html(Admin.errorBoxHtml(invalid));
             return;
         }
 
@@ -875,8 +883,9 @@ const Inspector = {
         .catch(function(error) {
             self.hideOverlay();
             var elapsed = Date.now() - startTime;
+            Admin.logError('Inspector.executeSql', error, error.details || null);
             Admin.addQueryHistory(sql, false, elapsed);
-            Admin.showError($('#results-container'), 'Error SQL: ' + error.message);
+            self.showErrorBox(error, 'La consulta SQL no se pudo ejecutar');
         });
     },
 

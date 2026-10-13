@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Database.php';
 require_once __DIR__ . '/../../../core/Response.php';
+require_once __DIR__ . '/../../../core/SqlError.php';
 
 try {
     $table = $_POST['table'] ?? '';
@@ -11,13 +12,13 @@ try {
     $fields = $_POST['fields'] ?? '';
     
     if (empty($table)) {
-        Response::error('Parámetro table requerido');
-        exit;
+        $err = SqlError::make('invalid_input', 'No se indicó la tabla a consultar (parámetro table vacío).');
+        Response::error(SqlError::message($err), 400, ['error' => $err]);
     }
-    
+
     if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
-        Response::error('Nombre de tabla no válido');
-        exit;
+        $err = SqlError::make('invalid_input', "Nombre de tabla no válido: «{$table}». Solo se admiten letras, números y guion bajo.");
+        Response::error(SqlError::message($err), 400, ['error' => $err]);
     }
     
     $db = Database::getInstance(DB_CONFIG);
@@ -26,12 +27,18 @@ try {
     
     $fieldSql = '*';
     if (!empty($fields)) {
-        $fieldList = array_map('trim', explode(',', $fields));
+        $fieldList = array_filter(array_map('trim', explode(',', $fields)), function($f) { return $f !== ''; });
         $safeFields = [];
         foreach ($fieldList as $f) {
-            if (preg_match('/^[A-Za-z0-9_]+$/', $f)) {
-                $safeFields[] = '"' . strtoupper($f) . '"';
+            if ($f === '*') {
+                $safeFields[] = '*';
+                continue;
             }
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $f)) {
+                $err = SqlError::make('invalid_input', "Nombre de columna no válido: «{$f}». Solo se admiten letras, números y guion bajo.");
+                Response::error(SqlError::message($err), 400, ['error' => $err]);
+            }
+            $safeFields[] = '"' . strtoupper($f) . '"';
         }
         $fieldSql = !empty($safeFields) ? implode(', ', $safeFields) : '*';
     }
@@ -40,6 +47,10 @@ try {
     $data = $db->query($sql);
     
     Response::success($data);
-} catch (Exception $e) {
-    Response::error('Error al obtener datos');
+} catch (PDOException $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 400, ['error' => $err]);
+} catch (Throwable $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 500, ['error' => $err]);
 }

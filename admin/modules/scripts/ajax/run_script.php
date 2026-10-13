@@ -3,6 +3,7 @@ session_start();
 header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Response.php';
+require_once __DIR__ . '/../../../core/SqlError.php';
 
 try {
     if (empty($_SESSION['scripts_auth'])) {
@@ -60,7 +61,11 @@ try {
         'json_data' => $jsonData,
         'size' => strlen($output)
     ]);
-} catch (Exception $e) {
+} catch (PDOException $e) {
+    $_SESSION['scripts_running'] = false;
+    $err = SqlError::fromException($e);
+    Response::error('Error al ejecutar script: ' . SqlError::message($err), 400, ['error' => $err]);
+} catch (Throwable $e) {
     $_SESSION['scripts_running'] = false;
     Response::error('Error al ejecutar script: ' . $e->getMessage());
 }

@@ -4,19 +4,20 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Database.php';
 require_once __DIR__ . '/../../../core/Response.php';
+require_once __DIR__ . '/../../../core/SqlError.php';
 
 try {
     $tableA = strtoupper($_POST['table_a'] ?? '');
     $tableB = strtoupper($_POST['table_b'] ?? '');
 
     if (empty($tableA) || empty($tableB)) {
-        Response::error('Parámetros table_a y table_b requeridos');
-        exit;
+        $err = SqlError::make('invalid_input', 'Faltan los parámetros table_a y table_b.');
+        Response::error(SqlError::message($err), 400, ['error' => $err]);
     }
 
     if (!preg_match('/^[A-Za-z0-9_]+$/', $tableA) || !preg_match('/^[A-Za-z0-9_]+$/', $tableB)) {
-        Response::error('Nombre de tabla no válido');
-        exit;
+        $err = SqlError::make('invalid_input', 'Nombre de tabla no válido: «' . $tableA . '» / «' . $tableB . '». Solo se admiten letras, números y guion bajo.');
+        Response::error(SqlError::message($err), 400, ['error' => $err]);
     }
 
     $db = Database::getInstance(DB_CONFIG);
@@ -81,6 +82,10 @@ try {
         'joins' => $allRelations,
         'count' => count($allRelations)
     ]);
-} catch (Exception $e) {
-    Response::error('Error al detectar JOINs: ' . $e->getMessage());
+} catch (PDOException $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 400, ['error' => $err]);
+} catch (Throwable $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 500, ['error' => $err]);
 }

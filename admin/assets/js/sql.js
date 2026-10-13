@@ -124,14 +124,11 @@ const SqlModule = {
 
     execute: function() {
         const sql = this._cmEditor ? this._cmEditor.getValue().trim() : $('#sql-editor').val().trim();
-        if (!sql) {
-            Admin.showAlert('Escribe una consulta SQL', 'warning');
-            return;
-        }
-
-        const limpia = sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--.*$/gm, '').trim().substring(0, 10).toUpperCase();
-        if (!limpia.startsWith('SELECT') && !limpia.startsWith('WITH')) {
-            Admin.showAlert('Solo se permiten consultas SELECT de lectura', 'warning');
+        const invalid = Admin.validateReadOnlySql(sql);
+        if (invalid) {
+            $('#sql-results-container').html(Admin.errorBoxHtml(invalid));
+            $('#sql-results-count').text('0');
+            $('#sql-results-info').hide();
             return;
         }
 
@@ -159,7 +156,10 @@ const SqlModule = {
                     $('#sql-execution-time').text(elapsed + 'ms · 0 registros');
                     Admin.addQueryHistory(sql, true, elapsed);
                 } else {
-                    $container.html(`<div class="sql-error-box"><div class="sql-error-title">❌ Error</div><pre class="sql-error-message">${response.msg || 'Error desconocido'}</pre></div>`);
+                    const detail = response.error
+                        ? Object.assign({ message: response.msg }, response.error)
+                        : { type: 'unknown', label: 'Error de base de datos', detail: response.msg || 'Error desconocido', message: response.msg };
+                    $container.html(Admin.errorBoxHtml(detail));
                     $('#sql-results-count').text('0');
                     $('#sql-results-info').hide();
                     Admin.addQueryHistory(sql, false, elapsed);
@@ -167,8 +167,21 @@ const SqlModule = {
             },
             error: function(xhr, status, error) {
                 const elapsed = Date.now() - startTime;
-                $container.html(`<div class="sql-error-box"><div class="sql-error-title">❌ Error de conexión</div><pre class="sql-error-message">${error || status}</pre></div>`);
+                let detail;
+                if (xhr && xhr.responseJSON) {
+                    detail = xhr.responseJSON.error || { type: 'unknown', detail: xhr.responseJSON.msg || error || status };
+                    detail = Object.assign({ message: xhr.responseJSON.msg }, detail);
+                } else {
+                    detail = {
+                        type: (!xhr || xhr.status === 0) ? 'network' : 'http',
+                        label: (!xhr || xhr.status === 0) ? 'Sin respuesta del servidor' : 'Error del servidor web',
+                        detail: error || status || 'Sin conexión con el servidor',
+                        hint: 'Comprueba la conexión con el servidor web y revisa los registros de PHP.'
+                    };
+                }
+                $container.html(Admin.errorBoxHtml(detail));
                 $('#sql-results-count').text('0');
+                $('#sql-results-info').hide();
                 Admin.addQueryHistory(sql, false, elapsed);
             }
         });

@@ -4,22 +4,35 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../../config.php';
 require_once __DIR__ . '/../../../core/Database.php';
 require_once __DIR__ . '/../../../core/Response.php';
+require_once __DIR__ . '/../../../core/SqlError.php';
 
 try {
-    $table = $_GET['table'] ?? '';
+    $table = $_GET['table'] ?? $_POST['table'] ?? '';
     if (empty($table)) {
-        Response::error('Parámetro table requerido');
-        exit;
+        $err = SqlError::make('invalid_input', 'No se indicó la tabla (parámetro table vacío).');
+        Response::error(SqlError::message($err), 400, ['error' => $err]);
     }
 
     if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
-        Response::error('Nombre de tabla no válido');
-        exit;
+        $err = SqlError::make('invalid_input', "Nombre de tabla no válido: «{$table}». Solo se admiten letras, números y guion bajo.");
+        Response::error(SqlError::message($err), 400, ['error' => $err]);
     }
 
     $tableUpper = strtoupper($table);
     $db = Database::getInstance(DB_CONFIG);
     $pdo = $db->getConnection();
+
+    $known = [];
+    foreach ($db->getTables() as $row) {
+        $name = trim((string)($row['TABLA'] ?? $row['tabla'] ?? ''));
+        if ($name !== '') {
+            $known[] = strtoupper($name);
+        }
+    }
+    if (!in_array($tableUpper, $known, true)) {
+        $err = SqlError::make('table_not_found', "La tabla «{$table}» no existe en la base de datos.");
+        Response::error(SqlError::message($err), 404, ['error' => $err]);
+    }
 
     $sqlHijos = "
         SELECT
@@ -70,6 +83,10 @@ try {
         'padres' => $padres,
         'allTables' => array_values($allTables)
     ]);
-} catch (Exception $e) {
-    Response::error('Error al consultar relaciones');
+} catch (PDOException $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 400, ['error' => $err]);
+} catch (Throwable $e) {
+    $err = SqlError::fromException($e);
+    Response::error(SqlError::message($err), 500, ['error' => $err]);
 }

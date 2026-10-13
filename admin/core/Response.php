@@ -37,8 +37,10 @@ class Response
 
     /**
      * Respuesta de error
+     *
+     * @param array $extra Datos adicionales (ej.: ['error' => SqlError::fromException($e)])
      */
-    public static function error(string $msg = "Error desconocido", int $httpCode = 400): void
+    public static function error(string $msg = "Error desconocido", int $httpCode = 400, array $extra = []): void
     {
         // Limpiar buffer de output para enviar headers correctamente
         while (ob_get_level() > 0) {
@@ -48,12 +50,18 @@ class Response
         http_response_code($httpCode);
         header('Content-Type: application/json; charset=utf-8');
         
-        echo json_encode([
+        $payload = [
             'success' => false,
             'data'    => null,
             'msg'     => $msg,
             'count'   => 0,
-        ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        ];
+        
+        foreach ($extra as $key => $value) {
+            $payload[$key] = $value;
+        }
+        
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
         
         exit;
     }

@@ -753,8 +753,15 @@ const Builder = {
             Admin.addQueryHistory(sql, true);
         })
         .catch(function(error) {
-            Admin.logError('Builder.executeSql', error);
-            Admin.toastError('Error: ' + error.message);
+            Admin.logError('Builder.executeSql', error, error.details || null);
+            var detail = Admin.describeError(error);
+            var $container = $('#builder-results-container');
+            var $table = $('#builder-results-table');
+            $table.html(Admin.errorBoxHtml(error));
+            $('#builder-results-count').text('0');
+            $('#builder-results-time').text('');
+            $container.show();
+            Admin.toastError(detail.label + ': ' + (detail.detail || detail.message));
             Admin.addQueryHistory(sql, false);
         })
         .finally(function() {

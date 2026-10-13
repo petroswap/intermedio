@@ -24,6 +24,7 @@ intermedio/
 │   │   ├── CRUD.php          # Operaciones genéricas sobre tablas
 │   │   ├── Database.php      # Conexión PDO (Singleton, Firebird/MySQL)
 │   │   ├── Dotenv.php        # Parser de variables de entorno
+│   │   ├── SqlError.php      # Clasificador de errores SQL tipados
 │   │   └── Response.php      # Respuestas JSON estandarizadas
 │   ├── modules/
 │   │   ├── inspector/        # Módulo Inspector (tablas, columnas, datos)
@@ -33,7 +34,7 @@ intermedio/
 │   │   │   │   ├── listar_columnas.php    # Columnas + IS_PK
 │   │   │   │   ├── obtener_datos.php      # Datos paginados + filtros + BETWEEN
 │   │   │   │   ├── obtener_ultimos.php    # Últimos N registros
-│   │   │   │   ├── ejecutar_sql.php       # SQL libre (SELECT/WITH)
+│   │   │   │   ├── ejecutar_sql.php       # SQL libre (SELECT/WITH/SET TRANSACTION READ ONLY/ROLLBACK)
 │   │   │   │   ├── contar_tablas.php      # Conteo batch de registros
 │   │   │   │   ├── favorites.php          # CRUD favoritos + import/export JSON
 │   │   │   │   └── relaciones.php         # FK relationships (grafo)
@@ -98,7 +99,7 @@ _No hay módulos en planificación por el momento._
   - **Básico**: Todos los campos, Primeros 10, Ordenar, Contar
   - **Filtros**: Igual a valor, LIKE, BETWEEN, IN (usa `{COL}` → primera columna de la tabla)
   - **Avanzado**: DISTINCT, GROUP BY, No nulos, ROWS 1 a 100
-- Solo ejecuta SELECT/WITH (validado server + client)
+- Solo ejecuta SELECT/WITH/SET TRANSACTION READ ONLY/ROLLBACK (whitelist por sentencia, validado server + client)
 - `Ctrl+Enter` ejecuta, `Escape` cierra
 
 ### Consola SQL (módulo `sql/`)
@@ -139,6 +140,9 @@ _No hay módulos en planificación por el momento._
 
 - `Admin.logError(context, error, extra)`: log a consola + localStorage (max 50 entradas)
 - Todos los `.catch()` en inspector.js usan `Admin.logError()` en vez de `console.error`
+- **Errores tipados**: `core/SqlError.php` clasifica cada fallo de BD en `{type, label, hint, code, gds, sqlstate, detail, line, column}`; los endpoints lo adjuntan con `Response::error(msg, 400, ['error' => $err])`
+- Frontend: `Admin.errorBoxHtml(error)` / `Inspector.showErrorBox(error, context)` renderizan caja con badge (tipo), detalle, consejo y meta (SQLCODE/GDSCODE/ubicación)
+- Tipos comunes: `syntax`, `table_not_found`, `column_not_found`, `connection`, `auth`, `invalid_input`, `validation`, `parameter`, `aggregate_group`, `unknown`
 
 ### Helpers Globales (`admin.js`)
 
@@ -152,8 +156,9 @@ _No hay módulos en planificación por el momento._
 - `obtener_ultimos.php`: limit capped a max 1000
 - `contar_tablas.php`: max 100 tablas por request
 - `obtener_datos.php`: per_page capped a 500
-- `ejecutar_sql.php`: solo SELECT/WITH, comentarios eliminados antes de validar
+- `ejecutar_sql.php`: whitelist por sentencia — solo SELECT/WITH/SET TRANSACTION READ ONLY/ROLLBACK; script multi-sentencia (respeta strings/comentarios), rechaza INSERT/UPDATE/DELETE/DDL/COMMIT
 - Todos los nombres de tablas/columnas validados con regex `^[A-Za-z0-9_]+$`
+- Entradas inválidas (tabla/columna/filtro/BETWEEN) → error tipado `invalid_input` (400), no se ignoran en silencio
 
 ## Configuración
 
@@ -203,7 +208,7 @@ $dsn = 'firebird:dbname=192.168.4.101/3050:C:\path\to\db.fdb;charset=UTF8';
 - Filtros: array anidado `filters[0][field]`, `filters[0][operator]`, `filters[0][value]`
 
 ### Seguridad
-- Consola SQL: Solo permitidas consultas SELECT/WITH (validado server + client)
+- Consola SQL: Whitelist por sentencia — solo SELECT/WITH/SET TRANSACTION READ ONLY/ROLLBACK (validado server + client; sin INSERT/UPDATE/DELETE/DDL/COMMIT)
 - .env nunca se sube al repo
 - Comentarios SQL eliminados antes de validar queries
 - Nombres de tablas/columnas: regex `^[A-Za-z0-9_]+$`
@@ -212,6 +217,7 @@ $dsn = 'firebird:dbname=192.168.4.101/3050:C:\path\to\db.fdb;charset=UTF8';
 
 - `admin/config.php` — Carga de entorno y configuración
 - `admin/core/Database.php` — Conexión y queries
+- `admin/core/SqlError.php` — Clasificador de errores SQL tipados (PDOFirebird → type/label/hint)
 - `admin/assets/js/admin.js` — Helpers globales (`formatNumber`, `logError`, `copyToClipboard`)
 - `admin/assets/js/inspector.js` — Lógica completa del Inspector
 - `admin/assets/js/sql.js` — Lógica del módulo SQL
