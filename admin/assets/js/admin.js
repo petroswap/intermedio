@@ -53,12 +53,7 @@ const Admin = {
      * Inicializar accesibilidad
      */
     initAccessibility: function() {
-        const skipLink = document.createElement('a');
-        skipLink.href = '#main-content';
-        skipLink.className = 'skip-link';
-        skipLink.textContent = 'Saltar al contenido principal';
-        document.body.insertBefore(skipLink, document.body.firstChild);
-
+        // Skip link ya existe en layout.php — no duplicar
         $(document).on('click', '#nav-toggle', function() {
             const $tabs = $('.nav-tabs');
             const expanded = $(this).attr('aria-expanded') === 'true';
@@ -437,11 +432,17 @@ const Admin = {
                 if (typeof Inspector !== 'undefined' && module === 'inspector') {
                     Inspector.init();
                 }
+                if (typeof Inspector !== 'undefined' && module === 'explorer') {
+                    Inspector.initUnified();
+                }
                 if (typeof SqlModule !== 'undefined' && module === 'sql') {
                     SqlModule.init();
                 }
                 if (typeof Builder !== 'undefined' && module === 'builder') {
                     Builder.init();
+                }
+                if (typeof ProcsModule !== 'undefined' && module === 'procedures') {
+                    ProcsModule.init();
                 }
                 if (typeof ScriptsModule !== 'undefined' && module === 'scripts') {
                     ScriptsModule.init();
@@ -893,6 +894,26 @@ const Admin = {
         var div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    },
+
+    /**
+     * Mapa de tipos Firebird (RDB$FIELD_TYPE / blr) -> nombre legible
+     */
+    FIREBIRD_TYPES: {
+        7: 'SMALLINT', 8: 'INTEGER', 9: 'QUAD', 10: 'FLOAT',
+        11: 'D_FLOAT', 12: 'DATE', 13: 'TIME', 14: 'CHAR',
+        16: 'BIGINT', 23: 'BOOLEAN', 24: 'DECFLOAT16', 25: 'DECFLOAT34',
+        26: 'INT128', 27: 'DOUBLE', 28: 'TIME WITH TIME ZONE',
+        29: 'TIMESTAMP WITH TIME ZONE', 35: 'TIMESTAMP', 37: 'VARCHAR',
+        261: 'BLOB'
+    },
+
+    /**
+     * Obtener nombre legible de un tipo Firebird numérico
+     */
+    fbTypeName: function(code) {
+        var n = parseInt(code, 10);
+        return this.FIREBIRD_TYPES[n] || ('TYPE_' + n);
     }
 };
 

@@ -155,7 +155,7 @@ _No hay módulos en planificación por el momento._
 
 - `obtener_ultimos.php`: limit capped a max 1000
 - `contar_tablas.php`: max 100 tablas por request
-- `obtener_datos.php`: per_page capped a 500
+- `obtener_datos.php`: per_page capped a 10000
 - `ejecutar_sql.php`: whitelist por sentencia — solo SELECT/WITH/SET TRANSACTION READ ONLY/ROLLBACK; script multi-sentencia (respeta strings/comentarios), rechaza INSERT/UPDATE/DELETE/DDL/COMMIT
 - Todos los nombres de tablas/columnas validados con regex `^[A-Za-z0-9_]+$`
 - Entradas inválidas (tabla/columna/filtro/BETWEEN) → error tipado `invalid_input` (400), no se ignoran en silencio

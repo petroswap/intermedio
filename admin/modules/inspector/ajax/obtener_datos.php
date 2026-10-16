@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../../core/SqlError.php';
 try {
     $table = $_POST['table'] ?? '';
     $page = max(1, intval($_POST['page'] ?? 1));
-    $perPage = max(1, min(500, intval($_POST['per_page'] ?? 25)));
+    $perPage = max(1, min(10000, intval($_POST['per_page'] ?? 25)));
     $fields = $_POST['fields'] ?? '';
     $filters = $_POST['filters'] ?? [];
     

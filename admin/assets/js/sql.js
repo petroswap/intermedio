@@ -335,11 +335,13 @@ const SqlModule = {
             return;
         }
         var html = '';
+        var esc = Admin.escapeHtml;
         this.favorites.forEach(function(fav) {
-            html += '<div class="sql-history-item sql-bookmark-item" data-sql="' + fav.sql.replace(/"/g, '&quot;') + '">' +
+            var sqlAttr = esc(String(fav.sql || ''));
+            html += '<div class="sql-history-item sql-bookmark-item" data-sql="' + sqlAttr + '">' +
                 '<span class="sql-history-icon">⭐</span>' +
-                '<span class="sql-history-sql" title="' + fav.sql.replace(/"/g, '&quot;') + '">' + fav.name + '</span>' +
-                '<button class="bookmark-delete-btn" data-id="' + fav.id + '" title="Eliminar favorito">&times;</button>' +
+                '<span class="sql-history-sql" title="' + sqlAttr + '">' + esc(String(fav.name || '')) + '</span>' +
+                '<button class="bookmark-delete-btn" data-id="' + esc(String(fav.id || '')) + '" title="Eliminar favorito">&times;</button>' +
             '</div>';
         });
         $list.html(html);

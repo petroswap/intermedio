@@ -61,7 +61,7 @@
                     GROUP BY
                 </h3>
                 <select id="builder-group-by" class="form-select form-select-sm">
-                    <option value="">Sin agrupacion</option>
+                    <option value="">Sin agrupación</option>
                 </select>
             </div>
 
@@ -82,11 +82,11 @@
                 </div>
             </div>
 
-            <!-- Limite -->
+            <!-- Límite -->
             <div class="builder-section">
                 <h3 class="builder-section-title">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
-                    Limite (ROWS)
+                    Límite (ROWS)
                 </h3>
                 <input type="number" id="builder-limit" class="form-input form-input-sm" value="100" min="1" max="10000">
             </div>

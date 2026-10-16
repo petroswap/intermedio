@@ -3,9 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="<?= APP_NAME ?> - Gestión de datos y endpoints">
+    <meta name="description" content="<?= APP_NAME ?> - Panel de administración de bases de datos">
     <title><?= APP_NAME ?> - <?= $currentModule['name'] ?></title>
     
+    <!-- Fuentes (con fallback a system si no hay red) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
     <!-- CSS -->
     <link rel="stylesheet" href="assets/css/admin.css">
     <link rel="stylesheet" href="assets/lib/jquery.dataTables.min.css">
@@ -49,7 +54,8 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <ul class="nav-tabs" role="tablist">
-            <?php foreach ($modules as $key => $mod): ?>
+            <?php foreach ($modules as $key => $mod):
+                if (!empty($mod['hidden'])) continue; ?>
             <li class="nav-tab <?= $module === $key ? 'active' : '' ?>" role="presentation">
                 <a href="?module=<?= $key ?>" 
                    role="tab"
@@ -63,7 +69,7 @@
         </ul>
     </nav>
 
-    <main class="content" id="main-content" role="main">
+    <main class="content" id="main-content" role="main" tabindex="-1">
         <div class="content-header">
             <h2 class="content-title">
                 <span class="content-icon" aria-hidden="true"><?= $currentModule['icon'] ?></span>
@@ -94,7 +100,7 @@
     <?php if ($module === 'dashboard'): ?>
     <script src="assets/js/dashboard.js"></script>
     <?php endif; ?>
-    <?php if ($module === 'inspector'): ?>
+    <?php if ($module === 'inspector' || $module === 'explorer'): ?>
     <script src="assets/js/inspector.js?v=3.0.0"></script>
     <?php endif; ?>
     <?php if ($module === 'sql'): ?>
@@ -102,6 +108,9 @@
     <?php endif; ?>
     <?php if ($module === 'builder'): ?>
     <script src="assets/js/builder.js"></script>
+    <?php endif; ?>
+    <?php if ($module === 'procedures'): ?>
+    <script src="assets/js/procedures.js?v=1.0.0"></script>
     <?php endif; ?>
     <?php if ($module === 'scripts'): ?>
     <script src="assets/js/scripts.js"></script>

@@ -23,7 +23,13 @@ function saveFavorites($file, $data) {
     if (!is_dir($dir)) {
         mkdir($dir, 0755, true);
     }
-    return file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) !== false;
+    // Escritura atómica con lock para evitar carreras y archivos truncados
+    $tmp = $file . '.tmp.' . getmypid();
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    if (file_put_contents($tmp, $json, LOCK_EX) === false) {
+        return false;
+    }
+    return rename($tmp, $file);
 }
 
 try {
@@ -31,10 +37,26 @@ try {
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
     if ($method === 'GET' && $action === 'export') {
+        if (!file_exists($favoritesFile)) {
+            Response::error('No hay favoritos para exportar', 404);
+            exit;
+        }
         header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="fuelops_favoritos.json"');
         readfile($favoritesFile);
         exit;
+    }
+
+    // CSRF ligero: rechazar POSTs desde orígenes externos (mismo host requerido)
+    if ($method === 'POST') {
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? ($_SERVER['HTTP_REFERER'] ?? '');
+        if ($origin !== '') {
+            $host = parse_url($origin, PHP_URL_HOST);
+            if ($host !== null && $host !== ($_SERVER['HTTP_HOST'] ?? '') && $host !== 'localhost' && $host !== '127.0.0.1') {
+                Response::error('Origen no permitido', 403);
+                exit;
+            }
+        }
     }
 
     if ($method === 'GET') {

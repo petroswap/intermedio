@@ -1,19 +1,19 @@
 ﻿/**
  * ============================================
- * INSPECTOR.JS - LÃ³gica del Inspector de BD (v3.0)
+ * INSPECTOR.JS - Lógica del Inspector de BD (v3.0)
  * ============================================
- * Flujo: Tablas â†’ 10 registros â†’ Mostrar todos + filtros + SQL con ayuda
+ * Flujo: Tablas → 10 registros → Mostrar todos + filtros + SQL con ayuda
  *
  * IMPORTANT: All events use delegation (bound to document) because the
  * inspector HTML is loaded dynamically via Admin.loadModule().
- * The $(document).ready() init is removed â€” Admin.loadModule() calls Inspector.init().
+ * The $(document).ready() init is removed — Admin.loadModule() calls Inspector.init().
  *
  * Endpoints:
- *   listar_tablas.php    â†’ lista de tablas con conteo
- *   listar_columnas.php  â†’ columnas de una tabla
- *   obtener_ultimos.php  â†’ Ãºltimos N registros (sin filtros, para carga rÃ¡pida)
- *   obtener_datos.php    â†’ datos paginados con filtros y campos seleccionados
- *   ejecutar_sql.php     â†’ SQL libre (SELECT only)
+ *   listar_tablas.php    → lista de tablas con conteo
+ *   listar_columnas.php  → columnas de una tabla
+ *   obtener_ultimos.php  → últimos N registros (sin filtros, para carga rápida)
+ *   obtener_datos.php    → datos paginados con filtros y campos seleccionados
+ *   ejecutar_sql.php     → SQL libre (SELECT only)
  */
 
 const Inspector = {
@@ -25,6 +25,7 @@ const Inspector = {
     showingAll: false,
     currentPage: 1,
     perPage: 50,
+    unified: false,
     _eventsBound: false,
     _tablesDt: null,
     _resultsDt: null,
@@ -55,6 +56,8 @@ const Inspector = {
      * Initialize inspector. Called by Admin.loadModule() after HTML is in DOM.
      */
     init: function() {
+        this.unified = false;
+        this._destroyTablesDt();
         if (!this._eventsBound) {
             this.bindEvents();
             this._eventsBound = true;
@@ -64,8 +67,41 @@ const Inspector = {
         this.checkUrlParams();
     },
 
+    /**
+     * Initialize unified (master-detail) view. Called by Admin.loadModule()
+     * when the module is 'explorer'. Same object/endpoints as Inspector,
+     * but both panes (table list + table content) stay visible side by side.
+     */
+    initUnified: function() {
+        this.unified = true;
+        this._destroyTablesDt();
+        this._destroyResultsDt();
+        if (!this._eventsBound) {
+            this.bindEvents();
+            this._eventsBound = true;
+        }
+        this.loadTables();
+        this.loadFavorites();
+        this.showUnifiedPlaceholder();
+        this.checkUrlParams();
+    },
+
+    _destroyTablesDt: function() {
+        if (this._tablesDt) {
+            try { this._tablesDt.destroy(); } catch (e) {}
+            this._tablesDt = null;
+        }
+    },
+
+    _destroyResultsDt: function() {
+        if (this._resultsDt) {
+            try { this._resultsDt.destroy(); } catch (e) {}
+            this._resultsDt = null;
+        }
+    },
+
     // ============================================
-    // EVENT BINDING (delegated â€” survives DOM replacement)
+    // EVENT BINDING (delegated — survives DOM replacement)
     // ============================================
 
     bindEvents: function() {
@@ -86,7 +122,7 @@ const Inspector = {
             }
         });
 
-        // NavegaciÃ³n
+        // Navegación
         $(document).on('click', '#btn-back-tables', function(e) { e.preventDefault(); self.showTablesView(); });
         $(document).on('click', '#btn-show-last-10', function() { self.loadLastRecords(10); });
         $(document).on('click', '#btn-show-all', function() { self.loadAllRecords(); });
@@ -211,10 +247,11 @@ const Inspector = {
     loadTables: function() {
         const self = this;
         const tbody = $('#tables-tbody');
+        const colspan = this.unified ? 1 : 2;
         tbody.html(
-            '<tr><td colspan="2"><div class="skeleton-cell name" style="width:150px"></div></td></tr>' +
-            '<tr><td colspan="2"><div class="skeleton-cell name" style="width:120px"></div></td></tr>' +
-            '<tr><td colspan="2"><div class="skeleton-cell name" style="width:180px"></div></td></tr>'
+            '<tr><td colspan="' + colspan + '"><div class="skeleton-cell name" style="width:150px"></div></td></tr>' +
+            '<tr><td colspan="' + colspan + '"><div class="skeleton-cell name" style="width:120px"></div></td></tr>' +
+            '<tr><td colspan="' + colspan + '"><div class="skeleton-cell name" style="width:180px"></div></td></tr>'
         );
 
         Admin.post('modules/inspector/ajax/listar_tablas.php', {})
@@ -222,13 +259,13 @@ const Inspector = {
             if (response.data && response.data.length > 0) {
                 self.renderTablesList(response.data);
             } else {
-                tbody.html('<tr><td colspan="2" class="text-center" style="padding:2rem;color:var(--text-tertiary)">No se encontraron tablas</td></tr>');
+                tbody.html('<tr><td colspan="' + colspan + '" class="text-center" style="padding:2rem;color:var(--text-tertiary)">No se encontraron tablas</td></tr>');
             }
         })
         .catch(function(error) {
             Admin.logError('loadTables', error, error.details || null);
             var detail = Admin.describeError(error);
-            tbody.html('<tr><td colspan="2" class="text-center" style="padding:2rem;color:var(--error)">' + Admin.escapeHtml(detail.label) + '<br><small>' + Admin.escapeHtml(detail.detail || detail.message) + '</small></td></tr>');
+            tbody.html('<tr><td colspan="' + colspan + '" class="text-center" style="padding:2rem;color:var(--error)">' + Admin.escapeHtml(detail.label) + '<br><small>' + Admin.escapeHtml(detail.detail || detail.message) + '</small></td></tr>');
             Admin.showAlert(detail.label + ': ' + (detail.detail || detail.message), 'danger', 'Error al listar las tablas');
         });
     },
@@ -236,6 +273,7 @@ const Inspector = {
     renderTablesList: function(tables) {
         const self = this;
         const tbody = $('#tables-tbody').empty();
+        const unified = this.unified;
 
         tables.forEach(function(table) {
             const name = (table.TABLA || table.tabla || '').trim();
@@ -249,14 +287,16 @@ const Inspector = {
                             '<span class="table-count-badge">' + (cachedCount !== null ? Admin.formatNumber(cachedCount) : '...') + '</span>' +
                         '</div>' +
                     '</td>' +
+                    (unified ? '' :
                     '<td>' +
                         '<button class="table-action-btn" data-table="' + name + '">Ver datos</button>' +
-                    '</td>' +
+                    '</td>') +
                 '</tr>'
             );
         });
 
         this.initTablesDataTable();
+        this.markActiveTableRow(this.currentTable);
         this.loadTableCounts(tables);
     },
 
@@ -304,12 +344,20 @@ const Inspector = {
     },
 
     initTablesDataTable: function() {
-        if (this._tablesDt) {
-            this._tablesDt.destroy();
-        }
+        this._destroyTablesDt();
 
-        this._tablesDt = $('#tables-datatable').DataTable({
-            language: {
+        // Modo unificado: textos más cortos para que quepan en 340px sin saltos de línea
+        var lang = this.unified
+            ? {
+                lengthMenu: 'Mostrar _MENU_',
+                zeroRecords: 'No se encontraron tablas',
+                info: '_START_ a _END_ de _TOTAL_',
+                infoEmpty: 'Sin resultados',
+                infoFiltered: '(de _MAX_)',
+                search: 'Buscar:',
+                paginate: { first: 'Primero', last: 'Último', next: '→', previous: '←' }
+            }
+            : {
                 lengthMenu: 'Mostrar _MENU_ tablas',
                 zeroRecords: 'No se encontraron tablas',
                 info: 'Mostrando _START_ a _END_ de _TOTAL_ tablas',
@@ -317,15 +365,42 @@ const Inspector = {
                 infoFiltered: '(filtrado de _MAX_)',
                 search: 'Buscar:',
                 paginate: { first: 'Primero', last: 'Último', next: '→', previous: '←' }
-            },
+            };
+
+        var opts = {
+            language: lang,
             pageLength: 25,
             order: [[0, 'asc']],
-            columns: [
-                { orderable: true },
-                { orderable: false }
-            ],
+            columns: this.unified
+                ? [{ orderable: true }]
+                : [{ orderable: true }, { orderable: false }],
             dom: '<"top"fl>rt<"bottom"ip>'
+        };
+
+        // Modo unificado: cabecera de columna fija + scroll propio + paginación siempre visible
+        if (this.unified) {
+            opts.scrollY = this._unifiedScrollY() + 'px';
+            opts.scrollCollapse = true;
+        }
+
+        this._tablesDt = $('#tables-datatable').DataTable(opts);
+    },
+
+    /**
+     * Altura disponible para el cuerpo con scroll del listado (modo unificado)
+     */
+    _unifiedScrollY: function() {
+        var $card = $('.unified-left .tables-card');
+        if (!$card.length) return 320;
+
+        var used = 0;
+        $card.children('.tables-card-header, .unified-search').each(function() {
+            used += Math.ceil($(this).outerHeight(true));
         });
+        // barra superior (longitud) + cabecera de columnas + paginación inferior
+        used += 110;
+
+        return Math.max(200, Math.round($card.innerHeight() - used));
     },
 
     filterTablesList: function(query) {
@@ -335,7 +410,7 @@ const Inspector = {
     },
 
     // ============================================
-    // NAVEGACIÃ“N ENTRE VISTAS
+    // NAVEGACIÓN ENTRE VISTAS
     // ============================================
 
     checkUrlParams: function() {
@@ -351,9 +426,18 @@ const Inspector = {
         this.showingAll = false;
         this.currentPage = 1;
         this._initialSql = null;
+        this.renderFilters();
+        // Limpiar de inmediato columnas y campos de filtro de la tabla anterior:
+        // evita que durante la carga asíncrona se seleccionen columnas que ya no aplican
+        $('#columns-container').empty();
+        $('#filter-field').empty().append('<option value="">Campo...</option>');
+        $('#filter-value').val('');
+        // Resultados obsoletos: mostrar loading en lugar de los datos de la tabla anterior
+        Admin.showLoading($('#results-container'));
 
         $('#sql-generated').text('SELECT * FROM ' + tableName);
         $('#btn-reset-sql').hide();
+        this.markActiveTableRow(tableName);
 
         const url = new URL(window.location);
         url.searchParams.set('table', tableName);
@@ -363,7 +447,39 @@ const Inspector = {
         this.loadTableInfo();
     },
 
+    /**
+     * Resaltar la fila activa en el listado (modo unificado)
+     */
+    markActiveTableRow: function(tableName) {
+        var $tbody = $('#tables-datatable tbody');
+        if (!$tbody.length) return;
+        $tbody.find('tr').removeClass('active-row');
+        if (tableName) {
+            $tbody.find('tr[data-table="' + tableName + '"]').addClass('active-row');
+        }
+    },
+
+    /**
+     * Estado vacío del panel derecho (sin tabla seleccionada) - modo unificado
+     */
+    showUnifiedPlaceholder: function() {
+        $('#view-table-data').hide();
+        $('#view-relationships').hide();
+        $('#unified-placeholder').show();
+    },
+
     showTablesView: function() {
+        if (this.unified) {
+            // En modo unificado la lista nunca se oculta: se deselecciona la tabla
+            this.showUnifiedPlaceholder();
+            const urlU = new URL(window.location);
+            urlU.searchParams.delete('table');
+            window.history.pushState({}, '', urlU);
+            this.currentTable = null;
+            this.markActiveTableRow(null);
+            return;
+        }
+
         $('#view-tables').show();
         $('#view-table-data').hide();
 
@@ -375,12 +491,20 @@ const Inspector = {
     },
 
     showTableView: function() {
+        if (this.unified) {
+            // Panel izquierdo (lista) siempre visible; solo se cambia el panel derecho
+            $('#unified-placeholder').hide();
+            $('#view-relationships').hide();
+            $('#view-table-data').show();
+            return;
+        }
+
         $('#view-tables').hide();
         $('#view-table-data').show();
     },
 
     // ============================================
-    // CARGA DE INFORMACIÃ“N DE TABLA
+    // CARGA DE INFORMACIÓN DE TABLA
     // ============================================
 
     loadTableInfo: function() {
@@ -411,8 +535,7 @@ const Inspector = {
             if (!name) return;
 
             var typeNum = parseInt(col.TIPO) || 0;
-            var typeNames = {45: 'VARCHAR', 46: 'CHAR', 261: 'BLOB', 271: 'INTEGER', 279: 'SMALLINT', 327: 'DOUBLE', 32754: 'FLOAT', 520: 'DATE', 560: 'TIME', 580: 'TIMESTAMP', 26154: 'BIGINT'};
-            var typeName = typeNames[typeNum] || 'TYPE_' + typeNum;
+            var typeName = Admin.fbTypeName(typeNum);
             var isPk = col.IS_PK == 1;
 
             var chip = $('<div class="column-chip selected">')
@@ -447,7 +570,7 @@ const Inspector = {
     // ============================================
 
     /**
-     * Cargar Ãºltimos N registros (carga rÃ¡pida, sin filtros)
+     * Cargar últimos N registros (carga rápida, sin filtros)
      */
     loadLastRecords: function(limit) {
         if (!this.currentTable) return;
@@ -465,7 +588,7 @@ const Inspector = {
         }
 
         Admin.showLoading($('#results-container'));
-        this.showOverlay('Cargando Ãºltimos ' + limit + ' registros...');
+        this.showOverlay('Cargando últimos ' + limit + ' registros...');
 
         var self = this;
         Admin.post('modules/inspector/ajax/obtener_ultimos.php', data)
@@ -580,7 +703,7 @@ const Inspector = {
     },
 
     /**
-     * Construir parÃ¡metros de envÃ­o para obtener_datos.php
+     * Construir parámetros de envío para obtener_datos.php
      */
     buildDataParams: function() {
         var params = {
@@ -688,7 +811,7 @@ const Inspector = {
         if (!response.data || response.data.length === 0) {
             container.html(
                 '<div style="text-align:center;padding:3rem;color:var(--text-tertiary)">' +
-                    '<div style="font-size:2rem;margin-bottom:1rem">ðŸ“­</div>' +
+                    '<div style="font-size:2rem;margin-bottom:1rem">📭</div>' +
                     '<p>No se encontraron registros</p>' +
                 '</div>'
             );
@@ -696,10 +819,7 @@ const Inspector = {
         }
 
         // Destruir DataTable previa si existe
-        if (this._resultsDt) {
-            this._resultsDt.destroy();
-            this._resultsDt = null;
-        }
+        this._destroyResultsDt();
 
         var html = Admin.createTable(response.data);
         container.html(html);
@@ -713,7 +833,7 @@ const Inspector = {
                     infoEmpty: "Sin resultados",
                     infoFiltered: "(filtrado de _MAX_)",
                     zeroRecords: "No se encontraron resultados",
-                    paginate: { first: "Primero", last: "Ãšltimo", next: "â†’", previous: "â†" }
+                    paginate: { first: "Primero", last: "Último", next: "→", previous: "←" }
                 },
                 pageLength: 25,
                 lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Todos"]],
@@ -724,7 +844,7 @@ const Inspector = {
     },
 
     // ============================================
-    // CONTADORES E INFORMACIÃ“N
+    // CONTADORES E INFORMACIÓN
     // ============================================
 
     updateCount: function(count) {
@@ -761,24 +881,29 @@ const Inspector = {
             return;
         }
 
-        var sql = 'SELECT ' + fields + '\nFROM ' + tableName;
+        var sql = 'SELECT ' + fields + '\nFROM "' + tableName + '"';
 
         if (this.filters.length > 0) {
+            var allowedOps = ['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'BETWEEN'];
             var conditions = this.filters.map(function(f) {
+                var col = '"' + f.field + '"';
+                var val = String(f.value || '').replace(/'/g, "''");
                 if (f.operator === 'LIKE') {
-                    return f.field + " LIKE '%" + f.value + "%'";
+                    return col + " LIKE '%" + val + "%'";
                 }
                 if (f.operator === 'BETWEEN') {
-                    var parts = f.value.split(',');
-                    return f.field + " BETWEEN '" + parts[0].trim() + "' AND '" + parts[1].trim() + "'";
+                    var parts = String(f.value || '').split(',');
+                    if (parts.length < 2) return col + " BETWEEN '' AND ''";
+                    return col + " BETWEEN '" + parts[0].trim().replace(/'/g, "''") + "' AND '" + parts[1].trim().replace(/'/g, "''") + "'";
                 }
-                return f.field + ' ' + f.operator + " '" + f.value + "'";
+                if (allowedOps.indexOf(f.operator) === -1) return col + " = '" + val + "'";
+                return col + ' ' + f.operator + " '" + val + "'";
             });
             sql += '\nWHERE ' + conditions.join('\n  AND ');
         }
 
         if (selectedColumns.length > 0) {
-            sql += '\nORDER BY ' + selectedColumns[0];
+            sql += '\nORDER BY "' + selectedColumns[0] + '"';
         }
 
         if (!this.showingAll) {
@@ -1011,11 +1136,13 @@ const Inspector = {
         }
         var self = this;
         var html = '';
+        var esc = Admin.escapeHtml;
         this.favorites.forEach(function(fav) {
-            html += '<div class="sql-history-item sql-bookmark-item" data-sql="' + fav.sql.replace(/"/g, '&quot;') + '">' +
+            var sqlAttr = esc(String(fav.sql || ''));
+            html += '<div class="sql-history-item sql-bookmark-item" data-sql="' + sqlAttr + '">' +
                 '<span class="sql-history-icon">⭐</span>' +
-                '<span class="sql-history-sql" title="' + fav.sql.replace(/"/g, '&quot;') + '">' + fav.name + '</span>' +
-                '<button class="bookmark-delete-btn" data-id="' + fav.id + '" title="Eliminar favorito">&times;</button>' +
+                '<span class="sql-history-sql" title="' + sqlAttr + '">' + esc(String(fav.name || '')) + '</span>' +
+                '<button class="bookmark-delete-btn" data-id="' + esc(String(fav.id || '')) + '" title="Eliminar favorito">&times;</button>' +
             '</div>';
         });
         $list.html(html);
@@ -1131,8 +1258,12 @@ const Inspector = {
 
     showRelationshipsView: function() {
         $('#view-table-data').hide();
-        $('#view-tables').hide();
         $('#view-relationships').show();
+        if (this.unified) {
+            $('#unified-placeholder').hide();
+        } else {
+            $('#view-tables').hide();
+        }
     },
 
     loadRelationships: function(tableName) {
@@ -1199,9 +1330,7 @@ const Inspector = {
         $(document).off('click', '.relation-table').on('click', '.relation-table', function() {
             var table = $(this).data('table');
             if (table) {
-                self.currentTable = table;
-                self.showTableView();
-                self.loadTableInfo();
+                self.selectTable(table);
             }
         });
     },
@@ -1311,9 +1440,7 @@ const Inspector = {
             if (params.nodes.length > 0) {
                 var clickedId = params.nodes[0];
                 if (clickedId !== centerTable) {
-                    self.currentTable = clickedId;
-                    self.showTableView();
-                    self.loadTableInfo();
+                    self.selectTable(clickedId);
                 }
             }
         });
@@ -1322,5 +1449,5 @@ const Inspector = {
     }
 };
 
-// DO NOT use $(document).ready() here â€” Admin.loadModule() calls Inspector.init()
+// DO NOT use $(document).ready() here — Admin.loadModule() calls Inspector.init()
 // after the inspector HTML is loaded into the DOM.

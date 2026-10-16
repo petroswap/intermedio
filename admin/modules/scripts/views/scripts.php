@@ -138,16 +138,16 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.6rem 0.75rem;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-default);
     cursor: pointer;
     transition: background 0.15s;
 }
 .scripts-script-item:hover {
-    background: var(--surface-secondary);
+    background: var(--surface-1);
 }
 .scripts-script-item.active {
-    background: var(--brand-50);
-    border-left: 3px solid var(--brand-500);
+    background: var(--primary-50);
+    border-left: 3px solid var(--primary-500);
 }
 .scripts-script-item h4 {
     margin: 0;
@@ -161,17 +161,17 @@
 .scripts-result-table th,
 .scripts-result-table td {
     padding: 0.4rem 0.6rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-default);
     text-align: left;
 }
 .scripts-result-table th {
-    background: var(--surface-secondary);
+    background: var(--surface-1);
     font-weight: 600;
     position: sticky;
     top: 0;
 }
 .scripts-result-table tr:hover {
-    background: var(--surface-secondary);
+    background: var(--surface-1);
 }
 .scripts-param-row {
     display: grid;

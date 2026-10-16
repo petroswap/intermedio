@@ -23,14 +23,8 @@ const Builder = {
     isDistinct: false,
     groupByColumn: '',
 
-    // Firebird type map
-    _typeMap: {
-        7: 'SMALLINT', 8: 'INTEGER', 9: 'QUAD', 10: 'FLOAT',
-        11: 'D_FLOAT', 12: 'DATE', 13: 'TIME', 14: 'CHAR',
-        16: 'BIGINT', 27: 'DOUBLE', 35: 'TIMESTAMP', 37: 'VARCHAR',
-        38: 'NCHAR', 40: 'CSTRING', 45: 'BLOB_ID', 261: 'BLOB',
-        271: 'ARRAY', 32764: 'BOOLEAN'
-    },
+    // Firebird type map delegado a Admin.fbTypeName (fuente única en admin.js)
+    _typeMap: null,
 
     _fkJoinSuggestions: null,
 
@@ -65,7 +59,7 @@ const Builder = {
     },
 
     getTypeName: function(code) {
-        return this._typeMap[code] || 'TYPE_' + code;
+        return Admin.fbTypeName(code);
     },
 
     bindEvents: function() {
