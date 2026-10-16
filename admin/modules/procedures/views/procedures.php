@@ -88,8 +88,6 @@
                 </div>
             </div>
 
-            <p id="proc-description" class="proc-description" style="display:none;"></p>
-
             <div class="proc-tabs">
                 <button class="proc-tab active" data-tab="info">Info</button>
                 <button class="proc-tab" data-tab="params">Parámetros</button>
@@ -108,9 +106,9 @@
                         <h4 class="proc-info-label">Usado por (triggers / procedures)</h4>
                         <div id="proc-callers" class="proc-tag-list"></div>
                     </div>
-                    <div class="proc-info-card proc-info-note">
-                        <h4 class="proc-info-label">Frecuencia de uso</h4>
-                        <p>Firebird <strong>no registra</strong> cuántas veces se invoca cada procedure. Como métrica disponible se muestra la tabla de dependencias (<code>RDB$DEPENDENCIES</code>): qué objetos lo usan y qué tablas toca.</p>
+                    <div class="proc-info-card">
+                        <h4 class="proc-info-label">Comentarios</h4>
+                        <p id="proc-comments" class="proc-comments-text proc-comments-empty">Sin comentarios registrados</p>
                     </div>
                 </div>
             </div>

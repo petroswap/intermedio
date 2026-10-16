@@ -5497,13 +5497,6 @@ a:hover {
 }
 
 /* Info tab */
-.proc-description {
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-    margin: calc(-1 * var(--space-sm)) 0 var(--space-lg);
-    line-height: 1.6;
-}
-
 .proc-info-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -5527,19 +5520,20 @@ a:hover {
     color: var(--text-tertiary);
 }
 
-.proc-info-note p {
+/* Info: comentarios del procedure (COMMENT ON PROCEDURE → RDB$DESCRIPTION) */
+.proc-comments-text {
     margin: 0;
-    font-size: var(--text-xs);
-    color: var(--text-tertiary);
-    line-height: 1.6;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    line-height: 1.65;
+    white-space: pre-wrap;
+    word-break: break-word;
 }
 
-.proc-info-note code {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    background: var(--surface-2);
-    padding: 1px 4px;
-    border-radius: 3px;
+.proc-comments-text.proc-comments-empty {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+    font-style: italic;
 }
 
 /* Tags */

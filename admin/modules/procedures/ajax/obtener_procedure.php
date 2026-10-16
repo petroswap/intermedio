@@ -73,8 +73,11 @@ try {
     }
 
     // --- dependencias: tablas/vistas que usa este procedure ---
+    // GROUP BY: RDB$DEPENDENCIES guarda una fila por columna referenciada
+    // (índice a nivel de campo), así que una tabla usada en N columnas
+    // aparece N veces — al usuario solo interesa una vez.
     $deps = [];
-    $depRows = $pdo->query("SELECT CAST(d.RDB\$DEPENDED_ON_NAME AS VARCHAR(64)) AS objeto, CAST(d.RDB\$DEPENDED_ON_TYPE AS INTEGER) AS tipo FROM RDB\$DEPENDENCIES d WHERE d.RDB\$DEPENDENT_NAME = '{$nombre}' AND CAST(d.RDB\$DEPENDED_ON_TYPE AS INTEGER) IN (0,1) ORDER BY 1")->fetchAll(PDO::FETCH_ASSOC);
+    $depRows = $pdo->query("SELECT CAST(d.RDB\$DEPENDED_ON_NAME AS VARCHAR(64)) AS objeto, CAST(d.RDB\$DEPENDED_ON_TYPE AS INTEGER) AS tipo FROM RDB\$DEPENDENCIES d WHERE d.RDB\$DEPENDENT_NAME = '{$nombre}' AND CAST(d.RDB\$DEPENDED_ON_TYPE AS INTEGER) IN (0,1) GROUP BY 1, 2 ORDER BY 1")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($depRows as $d) {
         $obj = trim($d['OBJETO'] ?? '');
         if ($obj === '') continue;
@@ -83,7 +86,7 @@ try {
 
     // --- inverso: qué usa este procedure (triggers/procedures que lo llaman) ---
     $callers = [];
-    $callRows = $pdo->query("SELECT CAST(d.RDB\$DEPENDENT_NAME AS VARCHAR(64)) AS objeto, CAST(d.RDB\$DEPENDENT_TYPE AS INTEGER) AS tipo FROM RDB\$DEPENDENCIES d WHERE d.RDB\$DEPENDED_ON_NAME = '{$nombre}' AND CAST(d.RDB\$DEPENDENT_TYPE AS INTEGER) IN (2,9) ORDER BY 1")->fetchAll(PDO::FETCH_ASSOC);
+    $callRows = $pdo->query("SELECT CAST(d.RDB\$DEPENDENT_NAME AS VARCHAR(64)) AS objeto, CAST(d.RDB\$DEPENDENT_TYPE AS INTEGER) AS tipo FROM RDB\$DEPENDENCIES d WHERE d.RDB\$DEPENDED_ON_NAME = '{$nombre}' AND CAST(d.RDB\$DEPENDENT_TYPE AS INTEGER) IN (2,9) GROUP BY 1, 2 ORDER BY 1")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($callRows as $d) {
         $obj = trim($d['OBJETO'] ?? '');
         if ($obj === '') continue;

@@ -202,7 +202,7 @@ var ProcsModule = {
         $('#proc-detail').show();
         $('#proc-name').text(name);
         $('#proc-type-badge').text('...');
-        $('#proc-description').hide().text('');
+        $('#proc-comments').text('Cargando...').addClass('proc-comments-empty');
         $('#proc-source').text('—');
         $('#proc-params-tbody').html('<tr><td colspan="4"><div class="loading"><div class="spinner"></div><p>Cargando...</p></div></td></tr>');
         $('#proc-deps').html('<span class="proc-tag-empty">—</span>');
@@ -239,12 +239,6 @@ var ProcsModule = {
             ? '<span class="proc-badge proc-badge-exec">Ejecutable</span>'
             : '<span class="proc-badge proc-badge-sel">Seleccionable</span>';
         $('#proc-type-badge').replaceWith(badge.replace('<span class="proc-badge', '<span id="proc-type-badge" class="proc-badge'));
-
-        if (d.descripcion) {
-            $('#proc-description').text(d.descripcion).show();
-        } else {
-            $('#proc-description').hide();
-        }
 
         $('#proc-source').text(d.fuente || '—');
 
@@ -291,6 +285,13 @@ var ProcsModule = {
             $('#proc-callers').html(tags);
         } else {
             $('#proc-callers').html('<span class="proc-tag-empty">Nadie lo referencia (según RDB$DEPENDENCIES)</span>');
+        }
+
+        // comentarios (COMMENT ON PROCEDURE → RDB$DESCRIPTION)
+        if (d.descripcion) {
+            $('#proc-comments').text(d.descripcion).removeClass('proc-comments-empty');
+        } else {
+            $('#proc-comments').text('Sin comentarios registrados (COMMENT ON PROCEDURE)').addClass('proc-comments-empty');
         }
 
         // params form for execute
