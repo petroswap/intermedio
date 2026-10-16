@@ -5400,6 +5400,20 @@ a:hover {
 /* ============================================
  * PROCEDURES MODULE
  * ============================================ */
+
+/* Listado con scroll propio: este módulo renderiza tbody a mano (no DataTables),
+   así que el wrapper base (overflow:hidden) necesita scroll para ver toda la lista.
+   La búsqueda queda fija arriba, fuera del área con scroll. */
+.procedures-layout .unified-tables-wrapper {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-default) transparent;
+}
+
+.procedures-layout .unified-tables-wrapper::-webkit-scrollbar { width: 6px; }
+.procedures-layout .unified-tables-wrapper::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+
 .proc-name-cell {
     display: flex;
     align-items: center;

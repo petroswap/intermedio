@@ -51,10 +51,6 @@ var ProcsModule = {
             }
         });
 
-        $(document).on('click.procsmod', '#btn-run-proc', () => {
-            this.switchTab('execute');
-        });
-
         // Ejecutar: primero pedir contraseña (misma lógica que Scripts)
         $(document).on('click.procsmod', '#btn-exec-proc', () => {
             this.requestExecution('procedure');
